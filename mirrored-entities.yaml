@@ -1,0 +1,71 @@
+blueprint:
+  name: Mirrored Entities State
+  description: >
+    # 🔛 Mirrored Entities State
+
+    **Version: 1.0**
+
+    Let us know what you think of this blueprint and for community support including updates: [Click Here](https://community.home-assistant.io/t/switch-turn-on-off-entities/481546)
+
+    This automation allows to sync the state of multiple entities.
+
+    **The Automation Process:**
+      - When you turn ANY entity ON, it will turn ON ALL the entities.
+      - When you turn ANY entity OFF, it will turn OFF ALL the entities.
+
+    **NOTE** - You can select any entity with an ON & OFF state.
+
+    Required = *
+
+    Need help? See our FAQ: [Click Here](https://community.home-assistant.io/t/switch-turn-on-off-entities/481546/2?u=blacky)
+    **If you like my blueprints, and would like to show your support or just say thank you?** [Click Here](https://www.paypal.com/donate/?hosted_button_id=WAZS3QSDTPGA8) 🙂
+  domain: automation
+  input:
+    mirrored_entity:
+      name: Mirrored Entity *
+      description: Entities whose state will be mirrored (if any of them is ON, all will be ON, and same for OFF state).
+      selector:
+        entity:
+          multiple: true
+
+variables:
+  mirrored_entity: !input mirrored_entity
+
+trigger:
+  - platform: state
+    entity_id: mirrored_entity
+    from: "off"
+    to: "on"
+    for:
+      milliseconds: 200
+  - platform: state
+    entity_id: mirrored_entity
+    from: "on"
+    to: "off"
+    for:
+      milliseconds: 200
+
+action:
+  - choose:
+    - alias: "Check if any entity is on"
+      conditions:
+        - condition: state
+          entity_id: mirrored_entity
+          state: 'on'
+          match: any
+      sequence:
+        - alias: "Turn ON all mirrored entities"
+          service: homeassistant.turn_on
+          target:
+            entity_id: mirrored_entity
+    - alias: "Check if any entity is off"
+      conditions:
+        - condition: state
+          entity_id: mirrored_entity
+          state: 'off'
+          match: any
+      sequence:
+        - alias: "Turn OFF all mirrored entities"
+          service: homeassistant.turn_off
+          target:
+            entity_id: mirrored_entity
