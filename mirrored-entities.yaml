@@ -33,13 +33,13 @@ variables:
 
 trigger:
   - platform: state
-    entity_id: mirrored_entity
+    entity_id: !input mirrored_entity
     from: "off"
     to: "on"
     for:
       milliseconds: 200
   - platform: state
-    entity_id: mirrored_entity
+    entity_id: !input mirrored_entity
     from: "on"
     to: "off"
     for:
@@ -50,22 +50,22 @@ action:
     - alias: "Check if any entity is on"
       conditions:
         - condition: state
-          entity_id: mirrored_entity
+          entity_id: !input mirrored_entity
           state: 'on'
           match: any
       sequence:
         - alias: "Turn ON all mirrored entities"
           service: homeassistant.turn_on
           target:
-            entity_id: mirrored_entity
+            entity_id: !input mirrored_entity
     - alias: "Check if any entity is off"
       conditions:
         - condition: state
-          entity_id: mirrored_entity
+          entity_id: !input mirrored_entity
           state: 'off'
           match: any
       sequence:
         - alias: "Turn OFF all mirrored entities"
           service: homeassistant.turn_off
           target:
-            entity_id: mirrored_entity
+            entity_id: !input mirrored_entity
