@@ -1,10 +1,8 @@
 blueprint:
   name: Linked Entities
   description: >
-    Import in HA: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
-
+    Import in HA: https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml
     Source: https://github.com/alexdelprete/ha-blueprints
-
     Support: https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete
 
     🔛 Linked Entities
