@@ -9,6 +9,8 @@ blueprint:
     Support:
     [![HA Community - Topic](https://img.shields.io/static/v1?label=HA+Community&message=Topic&color=2ea44f&logo=home-assistant)](https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete)
 
+
+
     🔛 Linked Entities - v1.0
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
