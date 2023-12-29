@@ -1,8 +1,7 @@
 blueprint:
   name: Linked Entities
   description: >
-    🔛 Linked Entities
-        version: 1.0
+    🔛 Linked Entities - v1.0
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
