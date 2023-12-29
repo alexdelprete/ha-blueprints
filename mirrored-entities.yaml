@@ -1,51 +1,47 @@
 blueprint:
-  name: Mirrored Entities State
+  name: Linked Entities
   description: >
-    # 🔛 Mirrored Entities State
+    # 🔛 Linked Entities
 
     **Version: 1.0**
 
-    Let us know what you think of this blueprint and for community support including updates: [Click Here](https://community.home-assistant.io/t/switch-turn-on-off-entities/481546)
-
-    This automation allows to sync the state of multiple entities.
+    This automation allows to link the state of multiple entities.
 
     **The Automation Process:**
-      - When you turn ANY entity ON, it will turn ON ALL the entities.
-      - When you turn ANY entity OFF, it will turn OFF ALL the entities.
+      - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
+      - When you turn ANY linked entity OFF, it will turn OFF ALL linked entities.
 
-    **NOTE** - You can select any entity with an ON & OFF state.
+    **NOTE** - You can select any entity with an ON/OFF state (switches, lights, etc.)
 
-    Required = *
-
-    Need help? See our FAQ: [Click Here](https://community.home-assistant.io/t/switch-turn-on-off-entities/481546/2?u=blacky)
-    **If you like my blueprints, and would like to show your support or just say thank you?** [Click Here](https://www.paypal.com/donate/?hosted_button_id=WAZS3QSDTPGA8) 🙂
+    Need help? See our FAQ: [Click Here](https://community.home-assistant.io/t/)
+    **If you like to show your support hit the like button and** [Click Here](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G) 🙂
   domain: automation
   input:
-    mirrored_entity:
-      name: Mirrored Entity *
-      description: Entities whose state will be mirrored (if any of them is ON, all will be ON, and same for OFF state).
+    linked_entity:
+      name: Linked Entity *
+      description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON, and the same for the OFF state).
       selector:
         entity:
           multiple: true
 
 variables:
-  mirrored_entity: !input mirrored_entity
+  linked_entity: !input linked_entity
 
 trigger:
   - platform: state
     id: turn_on
-    entity_id: !input mirrored_entity
+    entity_id: !input linked_entity
     from: "off"
     to: "on"
     for:
-      milliseconds: 200
+      milliseconds: 100
   - platform: state
     id: turn_off
-    entity_id: !input mirrored_entity
+    entity_id: !input linked_entity
     from: "on"
     to: "off"
     for:
-      milliseconds: 200
+      milliseconds: 100
 
 action:
   - choose:
@@ -54,16 +50,16 @@ action:
         - condition: trigger
           id: turn_on
       sequence:
-        - alias: "Turn ON all mirrored entities"
+        - alias: "Turn ON all linked entities"
           service: homeassistant.turn_on
           target:
-            entity_id: !input mirrored_entity
+            entity_id: !input linked_entity
     - alias: "An entity turned OFF"
       conditions:
         - condition: trigger
           id: turn_off
       sequence:
-        - alias: "Turn OFF all mirrored entities"
+        - alias: "Turn OFF all linked entities"
           service: homeassistant.turn_off
           target:
-            entity_id: !input mirrored_entity
+            entity_id: !input linked_entity
