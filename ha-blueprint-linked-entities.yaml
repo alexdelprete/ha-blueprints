@@ -5,7 +5,7 @@ blueprint:
 
     Source:
     [![alexdelprete - ha-blueprints](https://img.shields.io/static/v1?label=alexdelprete&message=ha-blueprints&color=blue&logo=github)](https://github.com/alexdelprete/ha-blueprints "Go to GitHub repo") [![stars - ha-blueprints](https://img.shields.io/github/stars/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints) [![forks - ha-blueprints](https://img.shields.io/github/forks/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints)
-    
+
     Support:
     [![HA Community - Topic](https://img.shields.io/static/v1?label=HA+Community&message=Topic&color=2ea44f&logo=home-assistant)](https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete)
 
@@ -27,7 +27,7 @@ blueprint:
     I'm sure you'll find many more examples. :slight_smile:
 
     Donations:
-    [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")    
+    [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
   domain: automation
   input:
     linked_entity:
@@ -47,14 +47,14 @@ trigger:
     from: "off"
     to: "on"
     for:
-      milliseconds: 100
+      milliseconds: 200
   - platform: state
     id: turn_off
     entity_id: !input linked_entity
     from: "on"
     to: "off"
     for:
-      milliseconds: 100
+      milliseconds: 200
 
 action:
   - choose:
