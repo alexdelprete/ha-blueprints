@@ -12,7 +12,7 @@ blueprint:
       - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
       - When you turn ANY linked entity OFF, it will turn OFF ALL linked entities.
 
-    NOTE: You can select any entity with an ON/OFF state (switches, lights, etc.)
+    **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.)
 
     My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
     - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
@@ -29,8 +29,7 @@ blueprint:
       - 1.0: (2023-12-29)
         - First official release
 
-    If you like to show your support please hit the :heart: button and click here:
-
+    **If you like to show your support please hit click here:**
     [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
 
     **Source:**
