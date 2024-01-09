@@ -47,12 +47,12 @@ variables:
 trigger:
   - platform: state
     id: turn_on
-    entity_id: {{ linked_entities }}
+    entity_id: linked_entities
     from: "off"
     to: "on"
   - platform: state
     id: turn_off
-    entity_id: {{ linked_entities }}
+    entity_id: linked_entities
     from: "on"
     to: "off"
 
@@ -61,4 +61,4 @@ action:
       milliseconds: 200
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
-      entity_id: {{ linked_entities }}
+      entity_id: linked_entities
