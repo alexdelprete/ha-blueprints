@@ -37,42 +37,26 @@ blueprint:
         entity:
           multiple: true
 
+mode: single
+
 variables:
   linked_entity: !input linked_entity
 
 trigger:
-  - platform: state
+  - platform: template
     id: turn_on
     entity_id: !input linked_entity
-    from: "off"
-    to: "on"
-  - platform: state
+    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'on') | list != [] }}"
+  - platform: template
     id: turn_off
     entity_id: !input linked_entity
-    from: "on"
-    to: "off"
+    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'off') | list != [] }}"
 
 condition:
 - condition: template
   value_template: '{{ (trigger.to_state.context.id != this.context.id) }}'
 
 action:
-  - choose:
-    - alias: "An entity turned ON"
-      conditions:
-        - condition: trigger
-          id: turn_on
-      sequence:
-        - alias: "Turn ON all linked entities"
-          service: homeassistant.turn_on
-          target:
-            entity_id: !input linked_entity
-    - alias: "An entity turned OFF"
-      conditions:
-        - condition: trigger
-          id: turn_off
-      sequence:
-        - alias: "Turn OFF all linked entities"
-          service: homeassistant.turn_off
-          target:
-            entity_id: !input linked_entity
+  - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
+    target:
+      entity_id: !input linked_entity
