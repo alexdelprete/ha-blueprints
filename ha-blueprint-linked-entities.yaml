@@ -12,24 +12,23 @@ blueprint:
       - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
       - When you turn ANY linked entity OFF, it will turn OFF ALL linked entities.
 
-    > NOTE: You can select any entity with an ON/OFF state (switches, lights, etc.)
+    : You can select any entity with an ON/OFF state (switches, lights, etc.)
 
-    My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
-    - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
-    - when I want to open the external gate, I can use several linked switches in multiple rooms of the house
-    - when I want to manually turn on/off the irrigation system, I use two switches (internal and external) to activate my RainMachine cycle
+    ain use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
+     dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
+    en I want to open the external gate, I can use several linked switches in multiple rooms of the house
+    en I want to manually turn on/off the irrigation system, I use two switches (internal and external) to activate my RainMachine cycle
 
-    I'm sure you'll find many more examples. :slight_smile:
+    sure you'll find many more examples. :slight_smile:
 
-    >   CHANGELOG:
-    >
-    >   - 1.1: [date=2024-01-09 timezone="Europe/Rome"]
-    >     - Optimized service call leveraging trigger.id
-    >     - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
-    >     - Introduced a small delay after the service call to throttle the automation
-    >
-    >   - 1.0: [date=2023-12-29 timezone="Europe/Rome"]
-    >      - First official release
+    CHANGELOG:
+      - 1.1: [date=2024-01-09 timezone="Europe/Rome"]
+        - Optimized service call leveraging trigger.id
+        - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
+        - Introduced a small delay after the service call to throttle the automation
+      
+      - 1.0: [date=2023-12-29 timezone="Europe/Rome"]
+        - First official release
 
     If you like to show your support please hit the :heart: button and click here:
 
