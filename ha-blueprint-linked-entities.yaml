@@ -40,7 +40,7 @@ blueprint:
 mode: single
 
 variables:
-  linkedentities: !input linked_entity
+  linked_entities: !input linked_entity
 
 trigger:
   - platform: state
