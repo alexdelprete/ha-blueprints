@@ -57,5 +57,4 @@ trigger:
 action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
-      entity_id: >-
-        {{ expand(!input linked_entity) }}
+      entity_id: !input linked_entity
