@@ -45,11 +45,11 @@ variables:
 trigger:
   - platform: template
     id: turn_on
-    entity_id: 'linked_entity'
+    entity_id: 'linked_entities2'
     value_template: "{{ expand('linked_entities') | selectattr('state', '==', 'on') | list != [] }}"
   - platform: template
     id: turn_off
-    entity_id: 'linked_entity'
+    entity_id: 'linked_entities2'
     value_template: "{{ expand('linked_entities') | selectattr('state', '==', 'off') | list != [] }}"
 
 action:
