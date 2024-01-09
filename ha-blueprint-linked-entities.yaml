@@ -46,15 +46,11 @@ trigger:
     entity_id: !input linked_entity
     from: "off"
     to: "on"
-    for:
-      milliseconds: 250
   - platform: state
     id: turn_off
     entity_id: !input linked_entity
     from: "on"
     to: "off"
-    for:
-      milliseconds: 250
 
 condition:
 - condition: template
