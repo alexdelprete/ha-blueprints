@@ -57,8 +57,8 @@ trigger:
     to: "off"
 
 action:
-  - delay:
-      milliseconds: 200
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
       entity_id: !input linked_entity
+  - delay:
+      milliseconds: 200
