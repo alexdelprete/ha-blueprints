@@ -32,7 +32,7 @@ blueprint:
   input:
     linked_entity:
       name: Linked Entity *
-      description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON, and the same for the OFF state).
+      description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF state).
       selector:
         entity:
           multiple: true
@@ -40,23 +40,19 @@ blueprint:
 mode: single
 
 variables:
-  linked_entity: !input linked_entity
+  linked_entity: !input 'linked_entity'
 
 trigger:
   - platform: template
     id: turn_on
-    entity_id: !input linked_entity
-    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'on') | list != [] }}"
+    entity_id: !input 'linked_entity'
+    value_template: "{{ expand(linked_entity) | selectattr('state', '==', 'on') | list != [] }}"
   - platform: template
     id: turn_off
-    entity_id: !input linked_entity
-    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'off') | list != [] }}"
-
-condition:
-- condition: template
-  value_template: '{{ (trigger.to_state.context.id != this.context.id) }}'
+    entity_id: !input 'linked_entity'
+    value_template: "{{ expand(linked_entity) | selectattr('state', '==', 'off') | list != [] }}"
 
 action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
-      entity_id: !input linked_entity
+      entity_id: !input 'linked_entity'
