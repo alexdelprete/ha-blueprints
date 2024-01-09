@@ -30,7 +30,7 @@ blueprint:
     [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
   domain: automation
   input:
-    linkedentity:
+    linked_entity:
       name: Linked Entity *
       description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF state).
       selector:
@@ -40,17 +40,17 @@ blueprint:
 mode: single
 
 variables:
-  linkedentities: !input linkedentity
+  linkedentities: !input linked_entity
 
 trigger:
   - platform: state
     id: turn_on
-    entity_id: !input linkedentity
+    entity_id: !input linked_entity
     from: "off"
     to: "on"
   - platform: state
     id: turn_off
-    entity_id: !input linkedentity
+    entity_id: !input linked_entity
     from: "on"
     to: "off"
 
@@ -58,4 +58,4 @@ action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
       entity_id: >-
-        {{ expand(!input linkedentity) }}
+        {{ expand(!input linked_entity) }}
