@@ -38,6 +38,7 @@ blueprint:
           multiple: true
 
 mode: single
+max_exceeded: silent
 
 variables:
   linked_entities: !input linked_entity
@@ -58,3 +59,5 @@ action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
       entity_id: !input linked_entity
+  - delay:
+      milliseconds: 200
