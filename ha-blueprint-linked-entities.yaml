@@ -19,7 +19,7 @@ blueprint:
     - when I want to open the external gate, I can use several linked switches in multiple rooms of the house
     - when I want to manually turn on/off the irrigation system, I use two switches (internal and external) to activate my RainMachine cycle
 
-    I'm sure you'll find many more examples. :slight_smile:
+    I'm sure you'll find many more use-cases. :slight_smile:
 
     CHANGELOG:
       - 1.1: (2024-01-09)
