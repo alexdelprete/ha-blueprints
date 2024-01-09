@@ -22,11 +22,11 @@ blueprint:
     I'm sure you'll find many more examples. :slight_smile:
 
     CHANGELOG:
-      - 1.1: [date=2024-01-09 timezone="Europe/Rome"]
+      - 1.1: (2024-01-09)
         - Optimized service call leveraging trigger.id
         - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
         - Introduced a small delay after the service call to throttle the automation
-      - 1.0: [date=2023-12-29 timezone="Europe/Rome"]
+      - 1.0: (2023-12-29)
         - First official release
 
     If you like to show your support please hit the :heart: button and click here:
