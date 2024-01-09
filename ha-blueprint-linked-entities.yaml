@@ -46,11 +46,11 @@ trigger:
   - platform: template
     id: turn_on
     entity_id: 'linked_entity'
-    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'on') | list != [] }}"
+    value_template: "{{ expand('linked_entities') | selectattr('state', '==', 'on') | list != [] }}"
   - platform: template
     id: turn_off
     entity_id: 'linked_entity'
-    value_template: "{{ expand('linked_entity') | selectattr('state', '==', 'off') | list != [] }}"
+    value_template: "{{ expand('linked_entities') | selectattr('state', '==', 'off') | list != [] }}"
 
 action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
