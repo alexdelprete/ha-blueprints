@@ -40,7 +40,7 @@ blueprint:
 mode: single
 
 variables:
-  linked_entity: !input linked_entity
+  var_linked_entity: !input linked_entity
 
 trigger:
   - platform: state
@@ -57,4 +57,4 @@ trigger:
 action:
   - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
     target:
-      entity_id: '{{ expand(linked_entity) | selectattr("entity_id", "!=", trigger.entity_id) | map(attribute="entity_id") | list }}'
+      entity_id: '{{ expand(var_linked_entity) | selectattr("entity_id", "!=", trigger.entity_id) | map(attribute="entity_id") | list }}'
