@@ -30,7 +30,7 @@ blueprint:
     [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
   domain: automation
   input:
-    linked_entity:
+    linkedentity:
       name: Linked Entity *
       description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF state).
       selector:
@@ -40,7 +40,7 @@ blueprint:
 mode: single
 
 variables:
-  linkedentities: !input 'linked_entity'
+  linkedentities: !input 'linkedentity'
 
 trigger:
   - platform: state
