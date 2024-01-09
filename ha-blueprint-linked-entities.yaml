@@ -12,7 +12,7 @@ blueprint:
 
 
 
-    🔛 Linked Entities - v1.0
+    🔛 Linked Entities - v1.1
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -27,12 +27,20 @@ blueprint:
 
     I'm sure you'll find many more examples. :slight_smile:
 
+    CHANGELOG:
+
+      - 1.1:
+        - Optimized service call leveraging trigger.id
+        - Introduced max_exceeded to avoid warnings in log due to self-triggering
+        - Introduced a small delay after the service call to throttle the automation
+      - 1.0: First official release
+
     Donations:
     [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
   domain: automation
   input:
     linked_entity:
-      name: Linked Entity *
+      name: Linked Entities
       description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF state).
       selector:
         entity:
