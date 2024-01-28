@@ -4,13 +4,16 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v1.1** 🔛
+    **Linked Entities v1.2** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
       - When you turn ANY linked entity OFF, it will turn OFF ALL linked entities.
+      - When you set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
+      - When you set the color temperature of any light entity, it will set the same color temperature of ALL linked light entities.
+      - When you set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
 
-    **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.)
+    **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature attributes, and Fans with speed (percentage) attributes.
 
     My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
       - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
@@ -20,6 +23,10 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 1.2: (2024-01-28)
+        - Changed the action to a "Choose" building block to support fan, light and future attributes
+        - Added support for linked fan speeds
+        - Added support for linked light brightness and light color temperature
       - 1.1: (2024-01-09)
         - Optimized service call leveraging trigger.id
         - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
@@ -40,7 +47,7 @@ blueprint:
   input:
     linked_entity:
       name: Linked Entities
-      description: Entities whose state will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF state).
+      description: Entities whose state and attributes will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF, BRIGHTNESS, COLOR_TEMP, and SPEED states).
       selector:
         entity:
           multiple: true
@@ -62,10 +69,72 @@ trigger:
     entity_id: !input linked_entity
     from: "on"
     to: "off"
+  - platform: state
+    id: set_speed
+    entity_id: !input linked_entity
+    attribute: percentage
+  - platform: state
+    id: set_brightness
+    entity_id: !input linked_entity
+    attribute: brightness
+  - platform: state
+    id: set_color_temp
+    entity_id: !input linked_entity
+    attribute: color_temp
 
 action:
-  - service: "homeassistant.turn_{{ iif(trigger.id == 'turn_on', 'on', 'off') }}"
-    target:
-      entity_id: !input linked_entity
-  - delay:
-      milliseconds: 200
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: turn_on
+        sequence:
+          - service: "homeassistant.turn_on"
+            target:
+              entity_id: !input linked_entity
+          - delay:
+              milliseconds: 200
+      - conditions:
+          - condition: trigger
+            id: turn_off
+        sequence:
+          - service: "homeassistant.turn_off"
+            target:
+              entity_id: !input linked_entity
+          - delay:
+              milliseconds: 200
+      - conditions:
+          - condition: trigger
+            id: set_speed
+        sequence:
+          - variables:
+              set_fan_speed: "{{ trigger.to_state.attributes.percentage }}"
+          - service: fan.set_percentage
+            data:
+              entity_id: !input linked_entity
+              percentage: "{{ set_fan_speed }}"
+          - delay:
+              milliseconds: 200
+      - conditions:
+          - condition: trigger
+            id: set_brightness
+        sequence:
+          - variables:
+              set_light_brightness: "{{ trigger.to_state.attributes.brightness }}"
+          - service: light.turn_on
+            data:
+              entity_id: !input linked_entity
+              brightness: "{{ set_light_brightness }}"
+          - delay:
+              milliseconds: 200
+      - conditions:
+          - condition: trigger
+            id: set_color_temp
+        sequence:
+          - variables:
+              set_light_color_temp: "{{ trigger.to_state.attributes.color_temp }}"
+          - service: light.turn_on
+            data:
+              entity_id: !input linked_entity
+              color_temp: "{{ set_light_color_temp }}"
+          - delay:
+              milliseconds: 200
