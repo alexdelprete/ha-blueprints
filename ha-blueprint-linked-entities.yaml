@@ -23,7 +23,7 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
-      - 1.2: (2024-01-28)
+      - 1.2: (2024-01-28 - thanks @phrak)
         - Changed the action to a "Choose" building block to support fan, light and future attributes
         - Added support for linked fan speeds
         - Added support for linked light brightness and light color temperature
