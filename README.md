@@ -19,15 +19,15 @@ My main use-case was for multiple light switches in the house controlling the sa
 I'm sure you'll find many more use-cases. :slight_smile:
 
 **CHANGELOG:**
-  - 1.2: (2024-01-28 - thanks @phrak / @TimU for the PR)
+  - **1.2**: (2024-01-28 - thanks @phrak / @TimU for the PR)
     - Changed the action to a "Choose" building block to support fan, light and future attributes
     - Added support for linked fan speeds
     - Added support for linked light brightness and light color temperature
-  - 1.1: (2024-01-09)
+  - **1.1**: (2024-01-09)
     - Optimized service call leveraging trigger.id
     - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
     - Introduced a small delay after the service call to throttle the automation
-  - 1.0: (2023-12-29)
+  - **1.0**: (2023-12-29)
     - First official release
 
 **If you like to show your support please hit click here:**
