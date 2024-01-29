@@ -7,11 +7,11 @@ blueprint:
     **Linked Entities v1.2** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
-      - When you turn ANY linked entity ON, it will turn ON ALL linked entities.
-      - When you turn ANY linked entity OFF, it will turn OFF ALL linked entities.
-      - When you set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
-      - When you set the color temperature of any light entity, it will set the same color temperature of ALL linked light entities.
-      - When you set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
+      - turn ANY linked entity ON, it will turn ON ALL linked entities.
+      - turn ANY linked entity OFF, it will turn OFF ALL linked entities.
+      - set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
+      - set the color temp of any light entity, it will set the same color temperature of ALL linked light entities.
+      - set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
 
     **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature attributes, and Fans with speed (percentage) attributes.
 
@@ -23,7 +23,7 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
-      - 1.2: (2024-01-28 - thanks @phrak)
+      - 1.2: (2024-01-28 - thanks @phrak / @TimU for the PR)
         - Changed the action to a "Choose" building block to support fan, light and future attributes
         - Added support for linked fan speeds
         - Added support for linked light brightness and light color temperature
