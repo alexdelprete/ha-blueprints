@@ -19,10 +19,10 @@ My main use-case was for multiple light switches in the house controlling the sa
 I'm sure you'll find many more use-cases. :slight_smile:
 
 **CHANGELOG:**
-  -** 1.3**: (2024-07-10)
+  -** 1.3**: (2024-07-10 - thanks @jsenecal for PR #2)
     - Ignore changes to entities triggered by this automation
     - Do not change the state of the entity triggering the automation
-  - **1.2**: (2024-01-28 - thanks @phrak / @TimU for the PR)
+  - **1.2**: (2024-01-28 - thanks @phrak / @TimU for PR #1)
     - Changed the action to a "Choose" building block to support fan, light and future attributes
     - Added support for linked fan speeds
     - Added support for linked light brightness and light color temperature
