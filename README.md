@@ -1,6 +1,6 @@
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-**Linked Entities v1.2** 🔛
+**Linked Entities v1.3** 🔛
 
 This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
   - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -19,6 +19,9 @@ My main use-case was for multiple light switches in the house controlling the sa
 I'm sure you'll find many more use-cases. :slight_smile:
 
 **CHANGELOG:**
+  -** 1.3**: (2024-07-10)
+    - Ignore changes to entities triggered by this automation
+    - Do not change the state of the entity triggering the automation
   - **1.2**: (2024-01-28 - thanks @phrak / @TimU for the PR)
     - Changed the action to a "Choose" building block to support fan, light and future attributes
     - Added support for linked fan speeds
