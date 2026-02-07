@@ -1,157 +1,150 @@
 blueprint:
   name: Linked Entities
-  description: >-
-
-    [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
-
-    **Linked Entities v1.3** 🔛
-
-    This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
-      - turn ANY linked entity ON, it will turn ON ALL linked entities.
-      - turn ANY linked entity OFF, it will turn OFF ALL linked entities.
-      - set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
-      - set the color temp of any light entity, it will set the same color temperature of ALL linked light entities.
-      - set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
-
-    **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature attributes, and Fans with speed (percentage) attributes.
-
-    My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
-      - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
-      - when I want to open the external gate, I can use several linked switches in multiple rooms of the house
-      - when I want to manually turn on/off the irrigation system, I use two switches (internal and external) to activate my RainMachine cycle
-
-    I'm sure you'll find many more use-cases. :slight_smile:
-
-    **CHANGELOG:**
-      - 1.3: (2024-07-10 - thanks @jsenecal for PR #2)
-        - Ignore changes to entities triggered by this automation
-        - Do not change the state of the entity triggering the automation
-      - 1.2: (2024-01-28 - thanks @phrak / @TimU for PR #1)
-        - Changed the action to a "Choose" building block to support fan, light and future attributes
-        - Added support for linked fan speeds
-        - Added support for linked light brightness and light color temperature
-      - 1.1: (2024-01-09)
-        - Optimized service call leveraging trigger.id
-        - Introduced max_exceeded to avoid warnings in log due to possible self-triggering
-        - Introduced a small delay after the service call to throttle the automation
-      - 1.0: (2023-12-29)
-        - First official release
-
-    **If you like to show your support please hit click here:**
-    [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G "PayPal Donation")
-
-    **Source:**
-    [![alexdelprete - ha-blueprints](https://img.shields.io/static/v1?label=alexdelprete&message=ha-blueprints&color=blue&logo=github)](https://github.com/alexdelprete/ha-blueprints/blob/main/ha-blueprint-linked-entities.yaml "Go to GitHub repo") [![stars - ha-blueprints](https://img.shields.io/github/stars/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints) [![forks - ha-blueprints](https://img.shields.io/github/forks/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints)
-
-    **Support:**
-    [![HA Community - Topic](https://img.shields.io/static/v1?label=HA+Community&message=Topic&color=2ea44f&logo=home-assistant)](https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete)
-
+  description: "\n[![Open your Home Assistant instance and show the blueprint import
+    dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)\n**Linked
+    Entities v1.3** \U0001F51B\nThis blueprint allows you to easily create/maintain
+    an automation that links the state of multiple entities:\n  - turn ANY linked
+    entity ON, it will turn ON ALL linked entities.\n  - turn ANY linked entity OFF,
+    it will turn OFF ALL linked entities.\n  - set the brightness of any light entity,
+    it will set the same brightness of ALL linked light entities.\n  - set the color
+    temp of any light entity, it will set the same color temperature of ALL linked
+    light entities.\n  - set the speed (percentage) of any fan entity, it will set
+    the speed of ALL linked fan entities.\n\n**NOTE**: You can select any entity with
+    an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature
+    attributes, and Fans with speed (percentage) attributes.\nMy main use-case was
+    for multiple light switches in the house controlling the same light, but I also
+    use it for other things:\n  - at dawn, when I turn on the external lights (a shelly
+    switch), I also link the pool light mqtt switch.\n  - when I want to open the
+    external gate, I can use several linked switches in multiple rooms of the house\n
+    \ - when I want to manually turn on/off the irrigation system, I use two switches
+    (internal and external) to activate my RainMachine cycle\n\nI'm sure you'll find
+    many more use-cases. :slight_smile:\n**CHANGELOG:**\n  - 1.3: (2024-07-10 - thanks
+    @jsenecal for PR #2)\n    - Ignore changes to entities triggered by this automation\n
+    \   - Do not change the state of the entity triggering the automation\n  - 1.2:
+    (2024-01-28 - thanks @phrak / @TimU for PR #1)\n    - Changed the action to a
+    \"Choose\" building block to support fan, light and future attributes\n    - Added
+    support for linked fan speeds\n    - Added support for linked light brightness
+    and light color temperature\n  - 1.1: (2024-01-09)\n    - Optimized service call
+    leveraging trigger.id\n    - Introduced max_exceeded to avoid warnings in log
+    due to possible self-triggering\n    - Introduced a small delay after the service
+    call to throttle the automation\n  - 1.0: (2023-12-29)\n    - First official release\n\n**If
+    you like to show your support please hit click here:** [![contributions - welcome](https://img.shields.io/badge/contributions-welcome-blue)](https://www.paypal.com/donate/?hosted_button_id=8V9YE6S5E869G
+    \"PayPal Donation\")\n**Source:** [![alexdelprete - ha-blueprints](https://img.shields.io/static/v1?label=alexdelprete&message=ha-blueprints&color=blue&logo=github)](https://github.com/alexdelprete/ha-blueprints/blob/main/ha-blueprint-linked-entities.yaml
+    \"Go to GitHub repo\") [![stars - ha-blueprints](https://img.shields.io/github/stars/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints)
+    [![forks - ha-blueprints](https://img.shields.io/github/forks/alexdelprete/ha-blueprints?style=social)](https://github.com/alexdelprete/ha-blueprints)\n**Support:**
+    [![HA Community - Topic](https://img.shields.io/static/v1?label=HA+Community&message=Topic&color=2ea44f&logo=home-assistant)](https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete)"
   domain: automation
   input:
     linked_entity:
       name: Linked Entities
-      description: Entities whose state and attributes will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF, BRIGHTNESS, COLOR_TEMP, and SPEED states).
+      description: Entities whose state and attributes will be linked (if any of them
+        transitions to ON state, all will be ON. Same for the OFF, BRIGHTNESS, COLOR_TEMP,
+        and SPEED states).
       selector:
         entity:
+          filter:
+            domain:
+              - "switch"
+              - "light"
+              - "fan"
+              - "input_boolean"
           multiple: true
+          reorder: false
     delay_miliseconds:
       name: Delay
       description: How long to delay changes to linked entities
       selector:
         number:
-          min: 0
-          max: 1000
+          min: 0.0
+          max: 1000.0
           unit_of_measurement: miliseconds
           mode: box
+          step: 1.0
       default: 200
-
+  source_url: https://raw.githubusercontent.com/alexdelprete/ha-blueprints/main/ha-blueprint-linked-entities.yaml
 mode: single
 max_exceeded: silent
-
 variables:
   linked_entities: !input linked_entity
-
 trigger:
-  - platform: state
-    id: turn_on
-    entity_id: !input linked_entity
-    from: "off"
-    to: "on"
-  - platform: state
-    id: turn_off
-    entity_id: !input linked_entity
-    from: "on"
-    to: "off"
-  - platform: state
-    id: set_speed
-    entity_id: !input linked_entity
-    attribute: percentage
-  - platform: state
-    id: set_brightness
-    entity_id: !input linked_entity
-    attribute: brightness
-  - platform: state
-    id: set_color_temp
-    entity_id: !input linked_entity
-    attribute: color_temp
-
+- platform: state
+  id: turn_on
+  entity_id: !input linked_entity
+  from: 'off'
+  to: 'on'
+- platform: state
+  id: turn_off
+  entity_id: !input linked_entity
+  from: 'on'
+  to: 'off'
+- platform: state
+  id: set_speed
+  entity_id: !input linked_entity
+  attribute: percentage
+- platform: state
+  id: set_brightness
+  entity_id: !input linked_entity
+  attribute: brightness
+- platform: state
+  id: set_color_temp
+  entity_id: !input linked_entity
+  attribute: color_temp
 condition:
-  - condition: template
-    value_template: "{{ trigger.to_state.context.id != this.context.id }}"
-
+- condition: template
+  value_template: '{{ trigger.to_state.context.id != this.context.id }}'
 action:
-  - choose:
-      - conditions:
-          - condition: trigger
-            id: turn_on
-        sequence:
-          - service: "homeassistant.turn_on"
-            target:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-          - delay:
-              milliseconds: !input delay_miliseconds
-      - conditions:
-          - condition: trigger
-            id: turn_off
-        sequence:
-          - service: "homeassistant.turn_off"
-            target:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-          - delay:
-              milliseconds: !input delay_miliseconds
-      - conditions:
-          - condition: trigger
-            id: set_speed
-        sequence:
-          - variables:
-              set_fan_speed: "{{ trigger.to_state.attributes.percentage }}"
-          - service: fan.set_percentage
-            data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              percentage: "{{ set_fan_speed }}"
-          - delay:
-              milliseconds: !input delay_miliseconds
-      - conditions:
-          - condition: trigger
-            id: set_brightness
-        sequence:
-          - variables:
-              set_light_brightness: "{{ trigger.to_state.attributes.brightness }}"
-          - service: light.turn_on
-            data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              brightness: "{{ set_light_brightness }}"
-          - delay:
-              milliseconds: !input delay_miliseconds
-      - conditions:
-          - condition: trigger
-            id: set_color_temp
-        sequence:
-          - variables:
-              set_light_color_temp: "{{ trigger.to_state.attributes.color_temp }}"
-          - service: light.turn_on
-            data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              color_temp: "{{ set_light_color_temp }}"
-          - delay:
-              milliseconds: !input delay_miliseconds
+- choose:
+  - conditions:
+    - condition: trigger
+      id: turn_on
+    sequence:
+    - service: homeassistant.turn_on
+      target:
+        entity_id: '{{linked_entities | reject(''eq'', trigger.entity_id) | list }}'
+    - delay:
+        milliseconds: !input delay_miliseconds
+  - conditions:
+    - condition: trigger
+      id: turn_off
+    sequence:
+    - service: homeassistant.turn_off
+      target:
+        entity_id: '{{linked_entities | reject(''eq'', trigger.entity_id) | list }}'
+    - delay:
+        milliseconds: !input delay_miliseconds
+  - conditions:
+    - condition: trigger
+      id: set_speed
+    sequence:
+    - variables:
+        set_fan_speed: '{{ trigger.to_state.attributes.percentage }}'
+    - service: fan.set_percentage
+      data:
+        entity_id: '{{linked_entities | reject(''eq'', trigger.entity_id) | list }}'
+        percentage: '{{ set_fan_speed }}'
+    - delay:
+        milliseconds: !input delay_miliseconds
+  - conditions:
+    - condition: trigger
+      id: set_brightness
+    sequence:
+    - variables:
+        set_light_brightness: '{{ trigger.to_state.attributes.brightness }}'
+    - service: light.turn_on
+      data:
+        entity_id: '{{linked_entities | reject(''eq'', trigger.entity_id) | list }}'
+        brightness: '{{ set_light_brightness }}'
+    - delay:
+        milliseconds: !input delay_miliseconds
+  - conditions:
+    - condition: trigger
+      id: set_color_temp
+    sequence:
+    - variables:
+        set_light_color_temp: '{{ trigger.to_state.attributes.color_temp }}'
+    - service: light.turn_on
+      data:
+        entity_id: '{{linked_entities | reject(''eq'', trigger.entity_id) | list }}'
+        color_temp: '{{ set_light_color_temp }}'
+    - delay:
+        milliseconds: !input delay_miliseconds
