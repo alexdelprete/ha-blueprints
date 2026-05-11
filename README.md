@@ -48,6 +48,30 @@ The blueprint exposes three knobs. The defaults work well for most setups; adjus
 
 If you still hit weird behavior after tuning, open an issue with: your devices, integration types, the symptom, and your current input values.
 
+**Migrating from v1.3 to v2.0:**
+
+HA doesn't auto-pull blueprint updates. Re-import the blueprint manually:
+
+1. **Settings → Automations & Scenes → Blueprints → Linked Entities → ⋮ → Re-import blueprint** (or click the My-HA badge at the top of this README again).
+2. HA fetches the new YAML and overwrites the local copy. All existing automation instances pointing to this blueprint now use v2.0 logic.
+
+Then for each existing automation built from this blueprint, open it in **Settings → Automations & Scenes** and:
+
+1. **Check the `Delay` field** — the input was renamed `delay_miliseconds` → `delay_milliseconds` (typo fix), so HA can't find the old stored value. If you had customized it (say, 500 ms), it silently reverts to the new default of 200 ms. Re-enter your previous value if you cared about it.
+2. **Review the linked entities list** — the selector now only offers `light`, `switch`, `fan`, `input_boolean`. Stored values for other domains (`cover`, `climate`, `media_player`, etc.) generally still load, but the new branches only operate on the supported domains. Remove anything that isn't one of those four.
+3. **New `Debounce` field** appears with default 100 ms — no action needed unless you have a flaky network. See the *Tuning* section above for recommended values.
+4. **New `Light Transition` field** appears with default 0 (off) — no action needed unless you want smooth fades on brightness/color changes.
+5. **Click Save** on each instance — this forces HA to re-validate against the v2.0 schema and persist the values under the new keys.
+
+After upgrading, verify:
+
+- Toggle one entity in a linked group and confirm the rest follow.
+- For light groups: turn off, then back on at a specific brightness — linked lights should match (this is the [#3](https://github.com/alexdelprete/ha-blueprints/issues/3) fix).
+- For color bulbs: change color on one, confirm the others mirror (this is the [#5](https://github.com/alexdelprete/ha-blueprints/issues/5) fix).
+- Watch the HA log for the first day. If anything looks off, raise `Debounce` first.
+
+What does **not** break: the blueprint stays at the same path/URL, so all existing instance references survive. The context-id self-trigger guard is semantically unchanged. `homeassistant.turn_on/off` is still used in the on/off branches, so `input_boolean` / `switch` / `fan` domains keep working exactly as before.
+
 **CHANGELOG:**
   - **2.0**: (2026-05-11)
     - **Fix ([#6](https://github.com/alexdelprete/ha-blueprints/issues/6))**: linked entities now sync correctly when an entity recovers from `unavailable`/`unknown` to `on` or `off` — covers device-restart and integration-reload cases. Thanks @nsitt for the report.
