@@ -72,6 +72,38 @@ After upgrading, verify:
 
 What does **not** break: the blueprint stays at the same path/URL, so all existing instance references survive. The context-id self-trigger guard is semantically unchanged. `homeassistant.turn_on/off` is still used in the on/off branches, so `input_boolean` / `switch` / `fan` domains keep working exactly as before.
 
+**FAQ:**
+
+**Q: Can I link entities of different types (e.g. a light, a switch, and an input_boolean)?**
+Yes. On/off propagates across all of them via `homeassistant.turn_on/off`. Brightness and color only propagate to lights; fan speed only propagates to fans. Mixed-domain instances no longer error since v2.0.
+
+**Q: My entity isn't showing in the selector — why?**
+The selector is restricted to `light`, `switch`, `fan`, and `input_boolean`. Other domains (`cover`, `climate`, `media_player`, `binary_sensor`, etc.) aren't supported. If you have a use case for one of those, open an issue describing what you'd expect the blueprint to do for it.
+
+**Q: Can the same entity appear in multiple linked-entity instances?**
+Yes, but think it through. If instance A links `[X, Y]` and instance B links `[Y, Z]`, then toggling X propagates to Y (via A), and Y's change propagates to Z (via B). That's usually fine — the context-id guard prevents loops back to A. But if both instances include the *same pair*, you'll get redundant service calls. Stick to one instance per logical group when you can.
+
+**Q: Will this cause feedback loops?**
+Two layers of protection:
+1. The context-id guard ignores state changes whose context matches the blueprint's last firing context — this catches the common case where the blueprint's own service calls produce echoes.
+2. The `Debounce` window (default 100 ms) filters spurious state echoes from slow/flaky networks before they reach the action.
+If you still see misfires on Matter/Tapo/slow-Zigbee setups, raise `Debounce` to 500–2000 ms. See the *Tuning* section above.
+
+**Q: When I drag a brightness slider, the linked lights jump in steps instead of following smoothly. Is this broken?**
+No — that's `Debounce` working as intended. Only brightness values that hold for the debounce window (default 100 ms) propagate, so micro-steps during a slider drag are absorbed. If you want every step mirrored, lower `Debounce` to 0. If you want even fewer steps, raise it to 200–300 ms. For smooth fades to the final value, set `Light Transition` to 0.5–2 seconds.
+
+**Q: Can I turn the light on at a specific brightness depending on which switch toggled it (e.g., dim at night entrance switch, bright at day kitchen switch)?**
+Not directly with this blueprint — it propagates whatever brightness the source has, with no per-source logic. Workaround: create a small per-source automation that sets the desired brightness on the *first* light in the linked group when that specific switch fires, then this blueprint propagates that brightness to the rest. See [#7](https://github.com/alexdelprete/ha-blueprints/issues/7).
+
+**Q: I have a smart switch (wired to power) controlling a smart bulb in "decoupled" mode. Will linking them work reliably?**
+Mostly yes, with caveats. The combo of a wall switch + a bulb in decoupled mode is fundamentally a sync problem — both devices report their own state independently, and neither is authoritative. The blueprint will keep them aligned 99% of the time, but spurious state echoes on slow networks (especially Matter/Tapo dimmers) can occasionally cause the bulb to flicker off-on. Raise `Debounce` to 500–1000 ms to absorb these. If you only ever want the switch to control the bulb (one-way sync), you may not need this blueprint at all — see [@jnrcorp's note in #3](https://github.com/alexdelprete/ha-blueprints/issues/3#issuecomment-4413889870).
+
+**Q: What happens during a Home Assistant restart?**
+Each linked entity transitions through `unknown → on/off` as it restores. The blueprint's triggers accept `unknown` and `unavailable` as valid starting states (since v2.0, [#6](https://github.com/alexdelprete/ha-blueprints/issues/6)), so the blueprint fires once per entity as they come back online. Service calls on already-correct state are idempotent, so the result is consistent sync rather than flapping. Worst case: a couple of seconds of harmless redundant `homeassistant.turn_on/off` calls in the log right after startup.
+
+**Q: How do I know I'm running v2.0?**
+Open the blueprint in **Settings → Automations & Scenes → Blueprints → Linked Entities** and check the description — it should say "Linked Entities v2.0" near the top. The full changelog is below this FAQ.
+
 **CHANGELOG:**
   - **2.0**: (2026-05-11)
     - **Fix ([#6](https://github.com/alexdelprete/ha-blueprints/issues/6))**: linked entities now sync correctly when an entity recovers from `unavailable`/`unknown` to `on` or `off` — covers device-restart and integration-reload cases. Thanks @nsitt for the report.
