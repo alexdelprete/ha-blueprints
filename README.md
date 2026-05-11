@@ -1,6 +1,6 @@
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-**Linked Entities v2.0** 🔛
+**Linked Entities v2.0.1** 🔛
 
 This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
   - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -103,6 +103,9 @@ Each linked entity transitions through `unknown → on/off` as it restores. The 
 Open the blueprint in **Settings → Automations & Scenes → Blueprints → Linked Entities** and check the description — it should say "Linked Entities v2.0" near the top. The full changelog is below this FAQ.
 
 **CHANGELOG:**
+  - **2.0.1**: (2026-05-11) — regression fix
+    - **Fix**: feedback loop on auto-off / pulse switches (Shelly gate openers, momentary relays). v2.0's `mode: queued` exposed a latent flaw in the context-id self-trigger guard — echoes from the blueprint's own service calls slipped through because each queued run had its own context. Reverted to `mode: single`, which keeps the trailing delay active long enough for echoes to be silently dropped. v2.0's other fixes (the `turn_on` branch now carries brightness/color directly) make the loss of queued mode harmless for lights.
+    - **Fix**: tightened the self-trigger guard to also reject state events whose `context.parent_id` matches the automation's last context — defense-in-depth in case `mode: single` ever lets a one-hop echo through.
   - **2.0**: (2026-05-11)
     - **Fix ([#6](https://github.com/alexdelprete/ha-blueprints/issues/6))**: linked entities now sync correctly when an entity recovers from `unavailable`/`unknown` to `on` or `off` — covers device-restart and integration-reload cases. Thanks @nsitt for the report.
     - **Fix ([#3](https://github.com/alexdelprete/ha-blueprints/issues/3))**: brightness and color are now correctly propagated when a linked light turns on. Previously the `turn_on` branch dropped attribute triggers due to `mode: single` racing with state-change fan-out, so linked lights came up at their previous brightness/color. Thanks @jrosspaperless for the report and @jnrcorp / @richard-berg for the diagnosis and prototypes.
@@ -114,7 +117,7 @@ Open the blueprint in **Settings → Automations & Scenes → Blueprints → Lin
     - **Fix**: fan speed branch now ignores non-fan sources (was firing on any entity with a `percentage` attribute).
     - **Breaking**: input renamed `delay_miliseconds` → `delay_milliseconds`. Existing instances will revert to the default (200 ms) until re-saved.
     - **Breaking**: entity selector restricted to `light`, `switch`, `fan`, `input_boolean` (thanks @Aaroneisele55 for [PR #9](https://github.com/alexdelprete/ha-blueprints/pull/9)). Remove any other entity types from existing instances.
-    - **Improvement**: `mode: queued` (max 10) for clean state fan-out; trailing per-branch delay retained for throttling.
+    - **Improvement**: trailing per-branch delay retained for throttling and echo absorption under `mode: single`.
     - **Improvement**: optional `transition_seconds` input for smooth brightness/color changes.
     - **Improvement**: modern `target:` service-call syntax.
   - **1.3**: (2024-07-10 - thanks @jsenecal for PR #2)
