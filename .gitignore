@@ -1,0 +1,26 @@
+# AI tooling
+.claude/
+.cursor/
+.aider*
+.codeium/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Misc temp / scratch
+*.bak
+*.orig
+*.tmp
+*.log
+.comment-body-tmp.md
