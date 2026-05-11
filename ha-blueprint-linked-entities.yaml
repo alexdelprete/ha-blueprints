@@ -24,6 +24,7 @@ blueprint:
 
     **CHANGELOG:**
       - 2.0: (2026-05-11)
+        - **Fix ([#6](https://github.com/alexdelprete/ha-blueprints/issues/6))**: linked entities now sync correctly when an entity recovers from `unavailable`/`unknown` to `on` or `off` — covers device-restart and integration-reload cases. Thanks @nsitt for the report.
         - **Fix ([#3](https://github.com/alexdelprete/ha-blueprints/issues/3))**: brightness and color are now correctly propagated when a linked light turns on. Previously the `turn_on` branch dropped attribute triggers due to `mode: single` racing with state-change fan-out, so linked lights came up at their previous brightness/color. Thanks @jrosspaperless for the report and @jnrcorp / @richard-berg for the diagnosis and prototypes.
         - **Fix**: full color support — `hs_color`, `rgb_color`, `xy_color` are now propagated alongside `color_temp_kelvin` (priority: hs > rgb > xy > color_temp_kelvin), so RGB/Hue/Lifx-style bulbs sync color, not just whites. Inspired by @richard-berg's fork.
         - **Fix**: color flicker on multi-attribute color changes is eliminated — when a light updates several color attributes at once (e.g. hs + rgb + xy together), all color triggers route through a single branch with priority-resolved color, so linked lights receive identical updates instead of competing partial writes.
@@ -117,14 +118,20 @@ trigger:
   - platform: state
     id: turn_on
     entity_id: !input linked_entity
-    from: "off"
+    from:
+      - "off"
+      - "unavailable"
+      - "unknown"
     to: "on"
     for:
       milliseconds: !input debounce_milliseconds
   - platform: state
     id: turn_off
     entity_id: !input linked_entity
-    from: "on"
+    from:
+      - "on"
+      - "unavailable"
+      - "unknown"
     to: "off"
     for:
       milliseconds: !input debounce_milliseconds
