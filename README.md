@@ -50,18 +50,16 @@ If you still hit weird behavior after tuning, open an issue with: your devices, 
 
 **Migrating from v1.3 to v2.0:**
 
-HA doesn't auto-pull blueprint updates. Re-import the blueprint manually:
+HA doesn't auto-pull blueprint updates, but the migration itself is usually a single click. Re-import the blueprint manually:
 
 1. **Settings → Automations & Scenes → Blueprints → Linked Entities → ⋮ → Re-import blueprint** (or click the My-HA badge at the top of this README again).
-2. HA fetches the new YAML and overwrites the local copy. All existing automation instances pointing to this blueprint now use v2.0 logic.
+2. HA fetches the new YAML and overwrites the local copy. All existing automation instances pointing to this blueprint immediately start using v2.0 logic on the next trigger — **no re-save needed for most users.**
 
-Then for each existing automation built from this blueprint, open it in **Settings → Automations & Scenes** and:
+You only need to open an existing automation if one of these applies to you:
 
-1. **Check the `Delay` field** — the input was renamed `delay_miliseconds` → `delay_milliseconds` (typo fix), so HA can't find the old stored value. If you had customized it (say, 500 ms), it silently reverts to the new default of 200 ms. Re-enter your previous value if you cared about it.
-2. **Review the linked entities list** — the selector now only offers `light`, `switch`, `fan`, `input_boolean`. Stored values for other domains (`cover`, `climate`, `media_player`, etc.) generally still load, but the new branches only operate on the supported domains. Remove anything that isn't one of those four.
-3. **New `Debounce` field** appears with default 100 ms — no action needed unless you have a flaky network. See the *Tuning* section above for recommended values.
-4. **New `Light Transition` field** appears with default 0 (off) — no action needed unless you want smooth fades on brightness/color changes.
-5. **Click Save** on each instance — this forces HA to re-validate against the v2.0 schema and persist the values under the new keys.
+- **You had customized the `Delay` field** to anything other than 200 ms. The input was renamed `delay_miliseconds` → `delay_milliseconds` (typo fix), so HA silently falls back to the new default of 200 ms for your existing instances. Re-open the automation and re-enter your value under the new `Delay` field.
+- **You had non-supported entities in the linked list** (`cover`, `climate`, `media_player`, `binary_sensor`, etc.). They generally still load, but the new branches only act on `light`, `switch`, `fan`, `input_boolean`. Remove anything outside those four if it was relying on the old generic behavior.
+- **You want to tune the new `Debounce` or `Light Transition` inputs** for your specific network. Defaults work fine for most setups — see the *Tuning* section above for cases where they don't.
 
 After upgrading, verify:
 
