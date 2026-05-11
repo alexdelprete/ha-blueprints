@@ -4,16 +4,16 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v1.3** 🔛
+    **Linked Entities v2.0** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - turn ANY linked entity ON, it will turn ON ALL linked entities.
       - turn ANY linked entity OFF, it will turn OFF ALL linked entities.
-      - set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
-      - set the color temp of any light entity, it will set the same color temperature of ALL linked light entities.
-      - set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
+      - set the brightness of any light entity, it will set the same brightness on ALL linked light entities.
+      - set the color of any light entity (color_temp_kelvin / hs / rgb / xy), it will mirror the color on ALL linked light entities.
+      - set the speed (percentage) of any fan entity, it will set the speed on ALL linked fan entities.
 
-    **NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature attributes, and Fans with speed (percentage) attributes.
+    **NOTE**: The entity selector is restricted to `light`, `switch`, `fan`, and `input_boolean`. Mixing domains in one instance is supported: brightness/color/speed changes are propagated only to entities of the matching domain. If your network/devices generate spurious state echoes (Matter/Tapo dimmers, slow Zigbee mesh, etc.) increase the `Debounce` input to suppress them.
 
     My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
       - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
@@ -23,6 +23,19 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 2.0: (2026-05-11)
+        - **Fix ([#3](https://github.com/alexdelprete/ha-blueprints/issues/3))**: brightness and color are now correctly propagated when a linked light turns on. Previously the `turn_on` branch dropped attribute triggers due to `mode: single` racing with state-change fan-out, so linked lights came up at their previous brightness/color. Thanks @jrosspaperless for the report and @jnrcorp / @richard-berg for the diagnosis and prototypes.
+        - **Fix**: full color support — `hs_color`, `rgb_color`, `xy_color` are now propagated alongside `color_temp_kelvin` (priority: hs > rgb > xy > color_temp_kelvin), so RGB/Hue/Lifx-style bulbs sync color, not just whites. Inspired by @richard-berg's fork.
+        - **Fix**: color flicker on multi-attribute color changes is eliminated — when a light updates several color attributes at once (e.g. hs + rgb + xy together), all color triggers route through a single branch with priority-resolved color, so linked lights receive identical updates instead of competing partial writes.
+        - **Fix**: echo loop mitigation for slow/flaky networks — added a configurable per-trigger debounce. Default 100 ms swallows most spurious state echoes (e.g., Matter/Tapo dimmers reporting a momentary off after on). Users can raise it up to 5000 ms if needed. Thanks @AbbieDoobie for the report.
+        - **Fix**: domain-aware service calls — `light.turn_on` and `fan.set_percentage` only run against entities of the matching domain. Mixed-domain instances no longer error.
+        - **Fix**: switched from deprecated `color_temp` (mireds) to `color_temp_kelvin` (HA 2024.3+).
+        - **Fix**: fan speed branch now ignores non-fan sources (was firing on any entity with a `percentage` attribute).
+        - **Breaking**: input renamed `delay_miliseconds` → `delay_milliseconds`. Existing instances will revert to the default (200 ms) until re-saved.
+        - **Breaking**: entity selector restricted to `light`, `switch`, `fan`, `input_boolean`. Thanks @Aaroneisele55 for PR #9. Remove any other entity types from existing instances.
+        - **Improvement**: `mode: queued` (max 10) for clean state fan-out without echo amplification on slow networks; trailing per-branch delay retained for throttling.
+        - **Improvement**: optional `transition_seconds` input for smooth brightness/color changes.
+        - **Improvement**: modern `target:` service-call syntax.
       - 1.3: (2024-07-10 - thanks @jsenecal for PR #2)
         - Ignore changes to entities triggered by this automation
         - Do not change the state of the entity triggering the automation
@@ -50,26 +63,55 @@ blueprint:
   input:
     linked_entity:
       name: Linked Entities
-      description: Entities whose state and attributes will be linked (if any of them transitions to ON state, all will be ON. Same for the OFF, BRIGHTNESS, COLOR_TEMP, and SPEED states).
+      description: Entities whose state and attributes will be linked. Brightness/color propagate only to lights; speed propagates only to fans.
       selector:
         entity:
+          filter:
+            domain:
+              - light
+              - switch
+              - fan
+              - input_boolean
           multiple: true
-    delay_miliseconds:
+    delay_milliseconds:
       name: Delay
-      description: How long to delay changes to linked entities
+      description: Delay between propagated state changes (ms). Throttles back-to-back triggers in `queued` mode.
       selector:
         number:
           min: 0
           max: 1000
-          unit_of_measurement: miliseconds
+          unit_of_measurement: milliseconds
           mode: box
       default: 200
+    debounce_milliseconds:
+      name: Debounce
+      description: How long a state/attribute must remain stable before propagating (ms). Suppresses spurious echoes from slow Matter/Zigbee/WiFi devices. Default 100 ms is imperceptible to humans; raise to 500–2000 ms on flaky networks. Set to 0 to disable.
+      selector:
+        number:
+          min: 0
+          max: 5000
+          unit_of_measurement: milliseconds
+          mode: box
+      default: 100
+    transition_seconds:
+      name: Light Transition
+      description: Optional transition time (seconds) for brightness/color changes on linked lights. Set to 0 to disable.
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.5
+          unit_of_measurement: seconds
+          mode: box
+      default: 0
 
-mode: single
+mode: queued
+max: 10
 max_exceeded: silent
 
 variables:
   linked_entities: !input linked_entity
+  transition_seconds: !input transition_seconds
 
 trigger:
   - platform: state
@@ -77,81 +119,158 @@ trigger:
     entity_id: !input linked_entity
     from: "off"
     to: "on"
+    for:
+      milliseconds: !input debounce_milliseconds
   - platform: state
     id: turn_off
     entity_id: !input linked_entity
     from: "on"
     to: "off"
+    for:
+      milliseconds: !input debounce_milliseconds
   - platform: state
     id: set_speed
     entity_id: !input linked_entity
     attribute: percentage
+    for:
+      milliseconds: !input debounce_milliseconds
   - platform: state
     id: set_brightness
     entity_id: !input linked_entity
     attribute: brightness
+    for:
+      milliseconds: !input debounce_milliseconds
   - platform: state
-    id: set_color_temp
+    id: set_color_temp_kelvin
     entity_id: !input linked_entity
-    attribute: color_temp
+    attribute: color_temp_kelvin
+    for:
+      milliseconds: !input debounce_milliseconds
+  - platform: state
+    id: set_hs_color
+    entity_id: !input linked_entity
+    attribute: hs_color
+    for:
+      milliseconds: !input debounce_milliseconds
+  - platform: state
+    id: set_rgb_color
+    entity_id: !input linked_entity
+    attribute: rgb_color
+    for:
+      milliseconds: !input debounce_milliseconds
+  - platform: state
+    id: set_xy_color
+    entity_id: !input linked_entity
+    attribute: xy_color
+    for:
+      milliseconds: !input debounce_milliseconds
 
 condition:
   - condition: template
     value_template: "{{ trigger.to_state.context.id != this.context.id }}"
 
 action:
+  - variables:
+      others: "{{ linked_entities | reject('eq', trigger.entity_id) | list }}"
+      other_lights: "{{ others | select('match', '^light\\.') | list }}"
+      other_fans: "{{ others | select('match', '^fan\\.') | list }}"
+      src_brightness: "{{ state_attr(trigger.entity_id, 'brightness') }}"
+      src_color_temp_kelvin: "{{ state_attr(trigger.entity_id, 'color_temp_kelvin') }}"
+      src_hs_color: "{{ state_attr(trigger.entity_id, 'hs_color') }}"
+      src_rgb_color: "{{ state_attr(trigger.entity_id, 'rgb_color') }}"
+      src_xy_color: "{{ state_attr(trigger.entity_id, 'xy_color') }}"
+      src_percentage: "{{ state_attr(trigger.entity_id, 'percentage') }}"
+      color_data: >-
+        {% if src_hs_color is not none %}{{ {'hs_color': src_hs_color} }}
+        {%- elif src_rgb_color is not none %}{{ {'rgb_color': src_rgb_color} }}
+        {%- elif src_xy_color is not none %}{{ {'xy_color': src_xy_color} }}
+        {%- elif src_color_temp_kelvin is not none %}{{ {'color_temp_kelvin': src_color_temp_kelvin} }}
+        {%- else %}{{ {} }}{%- endif %}
+      transition_data: "{{ {'transition': transition_seconds} if transition_seconds > 0 else {} }}"
+      light_on_data: >-
+        {{
+          ({'brightness': src_brightness} if src_brightness is not none else {})
+          | combine(color_data)
+          | combine(transition_data)
+        }}
+
   - choose:
       - conditions:
           - condition: trigger
             id: turn_on
         sequence:
-          - service: "homeassistant.turn_on"
-            target:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
+          - if:
+              - "{{ others | count > 0 }}"
+            then:
+              - service: homeassistant.turn_on
+                target:
+                  entity_id: "{{ others }}"
+          - if:
+              - "{{ other_lights | count > 0 and trigger.entity_id.startswith('light.') and light_on_data | count > 0 }}"
+            then:
+              - service: light.turn_on
+                target:
+                  entity_id: "{{ other_lights }}"
+                data: "{{ light_on_data }}"
           - delay:
-              milliseconds: !input delay_miliseconds
+              milliseconds: !input delay_milliseconds
+
       - conditions:
           - condition: trigger
             id: turn_off
         sequence:
-          - service: "homeassistant.turn_off"
-            target:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
+          - if:
+              - "{{ others | count > 0 }}"
+            then:
+              - service: homeassistant.turn_off
+                target:
+                  entity_id: "{{ others }}"
           - delay:
-              milliseconds: !input delay_miliseconds
+              milliseconds: !input delay_milliseconds
+
       - conditions:
           - condition: trigger
             id: set_speed
+          - "{{ trigger.entity_id.startswith('fan.') }}"
+          - "{{ other_fans | count > 0 }}"
+          - "{{ src_percentage is not none }}"
         sequence:
-          - variables:
-              set_fan_speed: "{{ trigger.to_state.attributes.percentage }}"
           - service: fan.set_percentage
+            target:
+              entity_id: "{{ other_fans }}"
             data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              percentage: "{{ set_fan_speed }}"
+              percentage: "{{ src_percentage }}"
           - delay:
-              milliseconds: !input delay_miliseconds
+              milliseconds: !input delay_milliseconds
+
       - conditions:
           - condition: trigger
             id: set_brightness
+          - "{{ trigger.entity_id.startswith('light.') }}"
+          - "{{ other_lights | count > 0 }}"
+          - "{{ src_brightness is not none }}"
         sequence:
-          - variables:
-              set_light_brightness: "{{ trigger.to_state.attributes.brightness }}"
           - service: light.turn_on
-            data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              brightness: "{{ set_light_brightness }}"
+            target:
+              entity_id: "{{ other_lights }}"
+            data: "{{ {'brightness': src_brightness} | combine(transition_data) }}"
           - delay:
-              milliseconds: !input delay_miliseconds
+              milliseconds: !input delay_milliseconds
+
       - conditions:
           - condition: trigger
-            id: set_color_temp
+            id:
+              - set_color_temp_kelvin
+              - set_hs_color
+              - set_rgb_color
+              - set_xy_color
+          - "{{ trigger.entity_id.startswith('light.') }}"
+          - "{{ other_lights | count > 0 }}"
+          - "{{ color_data | count > 0 }}"
         sequence:
-          - variables:
-              set_light_color_temp: "{{ trigger.to_state.attributes.color_temp }}"
           - service: light.turn_on
-            data:
-              entity_id: "{{linked_entities | reject('eq', trigger.entity_id) | list }}"
-              color_temp: "{{ set_light_color_temp }}"
+            target:
+              entity_id: "{{ other_lights }}"
+            data: "{{ color_data | combine(transition_data) }}"
           - delay:
-              milliseconds: !input delay_miliseconds
+              milliseconds: !input delay_milliseconds

@@ -1,15 +1,15 @@
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-**Linked Entities v1.3** 🔛
+**Linked Entities v2.0** 🔛
 
 This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
   - turn ANY linked entity ON, it will turn ON ALL linked entities.
   - turn ANY linked entity OFF, it will turn OFF ALL linked entities.
-  - set the brightness of any light entity, it will set the same brightness of ALL linked light entities.
-  - set the color temp of any light entity, it will set the same color temperature of ALL linked light entities.
-  - set the speed (percentage) of any fan entity, it will set the speed of ALL linked fan entities.
+  - set the brightness of any light entity, it will set the same brightness on ALL linked light entities.
+  - set the color temperature of any light entity, it will set the same color temperature on ALL linked light entities.
+  - set the speed (percentage) of any fan entity, it will set the speed on ALL linked fan entities.
 
-**NOTE**: You can select any entity with an ON/OFF state (switches, lights, etc.), lights with brightness or color temperature attributes, and Fans with speed (percentage) attributes.
+**NOTE**: The entity selector is restricted to `light`, `switch`, `fan`, and `input_boolean`. Mixed-domain instances are supported: brightness/color/speed only propagate to entities of the matching domain.
 
 My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
   - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
@@ -18,7 +18,50 @@ My main use-case was for multiple light switches in the house controlling the sa
 
 I'm sure you'll find many more use-cases. :slight_smile:
 
+**Tuning for your network:**
+
+The blueprint exposes three knobs. The defaults work well for most setups; adjust only if you hit the symptoms below.
+
+| Input | Default | What it does |
+|---|---|---|
+| `Debounce` (`debounce_milliseconds`) | 100 ms | A state or attribute change must remain stable for this long before it propagates. Suppresses spurious echoes from flaky devices and absorbs micro-steps from brightness sliders. |
+| `Delay` (`delay_milliseconds`) | 200 ms | Pause after each propagated service call. Throttles back-to-back triggers when `mode: queued` is processing a burst. |
+| `Light Transition` (`transition_seconds`) | 0 (off) | Smooth fade duration for brightness/color updates on linked lights. |
+
+**Symptom → fix:**
+
+| Symptom | Try |
+|---|---|
+| Lights occasionally turn on and immediately back off on their own (or vice versa) | **Raise `Debounce` to 500–1000 ms**. This is the Matter/Tapo/slow-Zigbee echo bug from [#3](https://github.com/alexdelprete/ha-blueprints/issues/3). |
+| Linked entities feel a bit sluggish to react | **Lower `Debounce` to 0** and `Delay` to 50–100 ms. Only do this on fast, reliable local networks (Ethernet ESPHome, Z2M on a wired host). |
+| Home Assistant log shows service-call errors or "too many requests" warnings when toggling | **Raise `Delay` to 300–500 ms**. Some integrations (cloud-backed Tuya, large Z-Wave meshes) don't like rapid back-to-back calls. |
+| Dragging a brightness slider on one light produces visible "stepping" on the others | This is `Debounce` working as intended — only values that hold for 100 ms+ propagate. Raise it to 200–300 ms if you want even fewer intermediate steps, or lower to 0 if you want every step mirrored. |
+| Linked lights jump abruptly when brightness/color changes | **Set `Light Transition` to 0.5–2 seconds** for smooth fades. |
+| You linked a Zigbee bulb to a smart switch and the bulb misfires when the switch is also under load | jnrcorp's advice on [#3](https://github.com/alexdelprete/ha-blueprints/issues/3): consider whether you actually want the bulb to follow the switch's reported state, or if the switch should be the only controller (in which case you don't need this blueprint). If you do want sync, raise `Debounce` to 1000+ ms. |
+
+**Profiles by setup:**
+
+- **Fast & local** (ESPHome over Ethernet, Z2M on a wired host, Shellies on a clean 2.4 GHz): `Debounce: 0`, `Delay: 100`, `Transition: 0`.
+- **Default home** (mixed Zigbee + WiFi, Hue bridge, Sonoff): leave at defaults (`100 / 200 / 0`).
+- **Flaky network or cloud-backed devices** (Tapo via Matter, Tuya cloud, large Zigbee mesh): `Debounce: 500`, `Delay: 300`, `Transition: 0`.
+- **Smooth lighting scenes** (RGB bulbs syncing color across a room): defaults + `Transition: 1` for a 1-second fade.
+
+If you still hit weird behavior after tuning, open an issue with: your devices, integration types, the symptom, and your current input values.
+
 **CHANGELOG:**
+  - **2.0**: (2026-05-11)
+    - **Fix ([#3](https://github.com/alexdelprete/ha-blueprints/issues/3))**: brightness and color are now correctly propagated when a linked light turns on. Previously the `turn_on` branch dropped attribute triggers due to `mode: single` racing with state-change fan-out, so linked lights came up at their previous brightness/color. Thanks @jrosspaperless for the report and @jnrcorp / @richard-berg for the diagnosis and prototypes.
+    - **Fix**: full color support — `hs_color`, `rgb_color`, `xy_color` are now propagated alongside `color_temp_kelvin` (priority: hs > rgb > xy > color_temp_kelvin), so RGB/Hue/Lifx-style bulbs sync color, not just whites. Inspired by @richard-berg's fork.
+    - **Fix**: color flicker on multi-attribute color changes is eliminated — when a light updates several color attributes at once (e.g. hs + rgb + xy together), all color triggers route through a single branch with priority-resolved color, so linked lights receive identical updates instead of competing partial writes.
+    - **Fix**: echo loop mitigation for slow/flaky networks — added a configurable per-trigger debounce. Default 100 ms swallows most spurious state echoes (e.g., Matter/Tapo dimmers reporting a momentary off after on). Users can raise it up to 5000 ms if needed. Thanks @AbbieDoobie for the report.
+    - **Fix**: domain-aware service calls — `light.turn_on` and `fan.set_percentage` only run against entities of the matching domain. Mixed-domain instances no longer error.
+    - **Fix**: switched from deprecated `color_temp` (mireds) to `color_temp_kelvin` (HA 2024.3+).
+    - **Fix**: fan speed branch now ignores non-fan sources (was firing on any entity with a `percentage` attribute).
+    - **Breaking**: input renamed `delay_miliseconds` → `delay_milliseconds`. Existing instances will revert to the default (200 ms) until re-saved.
+    - **Breaking**: entity selector restricted to `light`, `switch`, `fan`, `input_boolean` (thanks @Aaroneisele55 for [PR #9](https://github.com/alexdelprete/ha-blueprints/pull/9)). Remove any other entity types from existing instances.
+    - **Improvement**: `mode: queued` (max 10) for clean state fan-out; trailing per-branch delay retained for throttling.
+    - **Improvement**: optional `transition_seconds` input for smooth brightness/color changes.
+    - **Improvement**: modern `target:` service-call syntax.
   - **1.3**: (2024-07-10 - thanks @jsenecal for PR #2)
     - Ignore changes to entities triggered by this automation
     - Do not change the state of the entity triggering the automation
