@@ -82,9 +82,10 @@ The selector is restricted to `light`, `switch`, `fan`, and `input_boolean`. Oth
 Yes, but think it through. If instance A links `[X, Y]` and instance B links `[Y, Z]`, then toggling X propagates to Y (via A), and Y's change propagates to Z (via B). That's usually fine — the context-id guard prevents loops back to A. But if both instances include the *same pair*, you'll get redundant service calls. Stick to one instance per logical group when you can.
 
 **Q: Will this cause feedback loops?**
-Two layers of protection:
-1. The context-id guard ignores state changes whose context matches the blueprint's last firing context — this catches the common case where the blueprint's own service calls produce echoes.
-2. The `Debounce` window (default 100 ms) filters spurious state echoes from slow/flaky networks before they reach the action.
+Three layers of protection (since v2.0.1):
+1. **`mode: single` + trailing `Delay`** — while the blueprint is running its propagation, any echo triggers arriving during the trailing delay window get silently dropped at the queue gate. This is the primary defense, especially against auto-off / pulse switches (Shelly gate openers, momentary relays) where every echoed `homeassistant.turn_on` would otherwise re-pulse the relay.
+2. **Context-id self-trigger guard** — state changes whose `context.id` or `context.parent_id` matches the automation's last firing context are rejected at the condition. Catches one-hop echoes that slip past `mode: single`.
+3. **`Debounce` window** (default 100 ms) — filters spurious state echoes from slow/flaky networks before they reach the trigger.
 If you still see misfires on Matter/Tapo/slow-Zigbee setups, raise `Debounce` to 500–2000 ms. See the *Tuning* section above.
 
 **Q: When I drag a brightness slider, the linked lights jump in steps instead of following smoothly. Is this broken?**
