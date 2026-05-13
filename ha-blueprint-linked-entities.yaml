@@ -4,7 +4,7 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v2.0.1** 🔛
+    **Linked Entities v2.0.2** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -23,6 +23,8 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 2.0.2: (2026-05-13) — color_temp regression fix
+        - **Fix**: linked lights no longer revert to a dim blueish tint when the source is set to a white color temperature. v2.0's priority chain (`hs > rgb > xy > color_temp_kelvin`) always picked `hs_color`, but Home Assistant *derives* `hs_color`/`rgb_color`/`xy_color` from kelvin when a light is in `color_mode: color_temp` — and that derived hs sits in a low-saturation blue range. Linked bulbs then ran their RGB LEDs at that hue instead of their dedicated white LEDs, producing the dim-blue look. The color attribute to propagate is now chosen from the source's `color_mode`, with the old priority chain kept only as a fallback if `color_mode` is missing. Thanks @mcmasterp for the report.
       - 2.0.1: (2026-05-11) — regression fix
         - **Fix**: feedback loop on auto-off / pulse switches (Shelly gate openers, momentary relays). v2.0's `mode: queued` exposed a latent flaw in the context-id self-trigger guard — echoes from the blueprint's own service calls slipped through because each queued run had its own context. Reverted to `mode: single`, which keeps the trailing delay active long enough for echoes to be silently dropped. v2.0's other fixes (the `turn_on` branch now carries brightness/color directly) make the loss of queued mode harmless for lights.
         - **Fix**: tightened the self-trigger guard to also reject state events whose `context.parent_id` matches the automation's last context — defense-in-depth in case `mode: single` ever lets a one-hop echo through.
@@ -186,13 +188,19 @@ action:
       other_lights: "{{ others | select('match', '^light\\.') | list }}"
       other_fans: "{{ others | select('match', '^fan\\.') | list }}"
       src_brightness: "{{ state_attr(trigger.entity_id, 'brightness') }}"
+      src_color_mode: "{{ state_attr(trigger.entity_id, 'color_mode') }}"
       src_color_temp_kelvin: "{{ state_attr(trigger.entity_id, 'color_temp_kelvin') }}"
       src_hs_color: "{{ state_attr(trigger.entity_id, 'hs_color') }}"
       src_rgb_color: "{{ state_attr(trigger.entity_id, 'rgb_color') }}"
       src_xy_color: "{{ state_attr(trigger.entity_id, 'xy_color') }}"
       src_percentage: "{{ state_attr(trigger.entity_id, 'percentage') }}"
       color_data: >-
-        {% if src_hs_color is not none %}{{ {'hs_color': src_hs_color} }}
+        {% if src_color_mode == 'hs' and src_hs_color is not none %}{{ {'hs_color': src_hs_color} }}
+        {%- elif src_color_mode in ('rgb', 'rgbw', 'rgbww') and src_rgb_color is not none %}{{ {'rgb_color': src_rgb_color} }}
+        {%- elif src_color_mode == 'xy' and src_xy_color is not none %}{{ {'xy_color': src_xy_color} }}
+        {%- elif src_color_mode == 'color_temp' and src_color_temp_kelvin is not none %}{{ {'color_temp_kelvin': src_color_temp_kelvin} }}
+        {%- elif src_color_mode in ('white', 'brightness', 'onoff') %}{{ {} }}
+        {%- elif src_hs_color is not none %}{{ {'hs_color': src_hs_color} }}
         {%- elif src_rgb_color is not none %}{{ {'rgb_color': src_rgb_color} }}
         {%- elif src_xy_color is not none %}{{ {'xy_color': src_xy_color} }}
         {%- elif src_color_temp_kelvin is not none %}{{ {'color_temp_kelvin': src_color_temp_kelvin} }}
