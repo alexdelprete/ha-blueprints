@@ -4,7 +4,7 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v2.0.2** 🔛
+    **Linked Entities v2.0.3** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -23,6 +23,30 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 2.0.3: (2026-06-22) — set_brightness color propagation fix + delay/mode improvements
+        - **Fix**: `set_brightness` branch now also propagates the source's current color.
+          When a source light changes brightness and color simultaneously (e.g. a Loxone
+          RGBW controller via PyLoxone), `mode: single` discards the `set_hs_color`/
+          `set_rgb_color` trigger because `set_brightness` fires first. The target light
+          now receives both the new brightness and the correct color in a single call.
+        - **Fix**: switched from `mode: single` to `mode: restart`. With `mode: single`
+          any trigger that arrives while a service call is in-flight (e.g. a slow
+          Matter/Thread device) is silently dropped, causing the target to miss rapid
+          consecutive changes. `mode: restart` cancels the in-flight run and immediately
+          re-executes with the latest state, so the last change always wins. The
+          context-guard condition (`context.id` / `context.parent_id` check) continues
+          to suppress echo loops correctly under this mode.
+        - **Fix**: all light branches (`set_brightness`, `set_color_*`) now send the
+          full current state (`brightness` + `color`) in a single call, using the
+          already-computed `light_on_data` variable. Previously, color-only branches
+          omitted brightness and vice versa, causing partial updates when `mode: restart`
+          let a color trigger win over a simultaneous brightness trigger.
+        - **Fix**: `delay_milliseconds` default changed from `200` to `0`. The trailing
+          delay was documented as throttling for `mode: queued`, which was removed in
+          v2.0.1. With `mode: restart` the delay only adds unnecessary latency.
+          Echo suppression is handled by `debounce_milliseconds`. Existing instances
+          are unaffected (saved value is kept); only new instances benefit automatically.
+          Raise `delay_milliseconds` only if your devices need extra settling time.
       - 2.0.2: (2026-05-13) — color_temp regression fix
         - **Fix**: linked lights no longer revert to a dim blueish tint when the source is set to a white color temperature. v2.0's priority chain (`hs > rgb > xy > color_temp_kelvin`) always picked `hs_color`, but Home Assistant *derives* `hs_color`/`rgb_color`/`xy_color` from kelvin when a light is in `color_mode: color_temp` — and that derived hs sits in a low-saturation blue range. Linked bulbs then ran their RGB LEDs at that hue instead of their dedicated white LEDs, producing the dim-blue look. The color attribute to propagate is now chosen from the source's `color_mode`, with the old priority chain kept only as a fallback if `color_mode` is missing. Thanks @mcmasterp for the report.
       - 2.0.1: (2026-05-11) — regression fix
@@ -81,14 +105,18 @@ blueprint:
           multiple: true
     delay_milliseconds:
       name: Delay
-      description: Delay between propagated state changes (ms). Throttles back-to-back triggers in `queued` mode.
+      description: >-
+        Optional trailing delay after each service call (ms). No longer needed
+        for echo suppression — `debounce_milliseconds` handles that at the trigger
+        level. Default is `0`; increase only if your devices need extra settling
+        time after receiving a command.
       selector:
         number:
           min: 0
           max: 1000
           unit_of_measurement: milliseconds
           mode: box
-      default: 200
+      default: 0
     debounce_milliseconds:
       name: Debounce
       description: How long a state/attribute must remain stable before propagating (ms). Suppresses spurious echoes from slow Matter/Zigbee/WiFi devices. Default 100 ms is imperceptible to humans; raise to 500–2000 ms on flaky networks. Set to 0 to disable.
@@ -111,7 +139,7 @@ blueprint:
           mode: box
       default: 0
 
-mode: single
+mode: restart
 max_exceeded: silent
 
 variables:
@@ -272,7 +300,7 @@ action:
           - service: light.turn_on
             target:
               entity_id: "{{ other_lights }}"
-            data: "{{ {'brightness': src_brightness} | combine(transition_data) }}"
+            data: "{{ light_on_data }}"
           - delay:
               milliseconds: !input delay_milliseconds
 
@@ -290,6 +318,6 @@ action:
           - service: light.turn_on
             target:
               entity_id: "{{ other_lights }}"
-            data: "{{ color_data | combine(transition_data) }}"
+            data: "{{ light_on_data }}"
           - delay:
               milliseconds: !input delay_milliseconds
