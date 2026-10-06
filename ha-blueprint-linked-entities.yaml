@@ -4,7 +4,7 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v2.0.2** 🔛
+    **Linked Entities v2.1.0** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -12,8 +12,9 @@ blueprint:
       - set the brightness of any light entity, it will set the same brightness on ALL linked light entities.
       - set the color of any light entity (color_temp_kelvin / hs / rgb / xy), it will mirror the color on ALL linked light entities.
       - set the speed (percentage) of any fan entity, it will set the speed on ALL linked fan entities.
+      - when an entity comes back from `unavailable`/`unknown`, it adopts the state (and brightness/color/speed) of the linked entities that stayed online.
 
-    **NOTE**: The entity selector is restricted to `light`, `switch`, `fan`, and `input_boolean`. Mixing domains in one instance is supported: brightness/color/speed changes are propagated only to entities of the matching domain. If your network/devices generate spurious state echoes (Matter/Tapo dimmers, slow Zigbee mesh, etc.) increase the `Debounce` input to suppress them.
+    **NOTE**: The entity selector accepts `light`, `switch`, `fan`, `input_boolean`, `siren`, `humidifier` and `remote`. Mixing domains in one instance is supported: on/off propagates to every linked entity, brightness/color only to lights, speed only to fans. If your network/devices generate spurious state echoes (Matter/Tapo dimmers, slow Zigbee mesh, etc.) increase the `Debounce (on/off)` input to suppress them.
 
     My main use-case was for multiple light switches in the house controlling the same light, but I also use it for other things:
       - at dawn, when I turn on the external lights (a shelly switch), I also link the pool light mqtt switch.
@@ -23,6 +24,17 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 2.1.0: (2026-10-06)
+        - **New**: supported domains extended with `siren`, `humidifier` and `remote` (on/off sync).
+        - **Change**: recovery from `unavailable`/`unknown` no longer pushes the recovering entity's state to the group. The recovering entity now *adopts* the state of the linked entities that stayed online, and only when they all agree; lights and fans also adopt brightness/color/speed from a same-domain peer. Fixes state flips after HA restarts or integration reloads, when entities came back in arbitrary order and the first one to appear overwrote the others.
+        - **Fix**: self-trigger guard hardened. State changes that share the originating context of the automation's last run are now rejected too. Previously, the attribute triggers that co-fire with a light turn-on were dropped by `mode: single` but still overwrote the stored context, so echoes arriving after the trailing delay slipped through.
+        - **Fix**: fan speed is now carried when a fan turns on (same class of bug as [#3](https://github.com/alexdelprete/ha-blueprints/issues/3) for lights). Linked fans no longer come up at their previous speed.
+        - **Fix**: linked lights and fans receive a single service call on turn-on, carrying brightness/color or speed directly. Previously a plain `turn_on` was followed by a second call with the attributes, causing a brief flash at the previous brightness/color.
+        - **Change**: the debounce is split in two. `Debounce (on/off)` (existing input `debounce_milliseconds`, so values you already tuned keep applying) now covers only on/off changes and its default drops from 100 to 50 ms, which is the only fixed cost in the reaction time of linked entities. The new `Debounce (brightness/color/speed)` (`attribute_debounce_milliseconds`, default 100 ms) covers attribute changes, where it smooths slider drags.
+        - **Change**: recovery waits a fixed 1 s settle before adopting the group state, instead of the on/off debounce, so the recovering device can finish its restore sequence and its peers have time to come online too.
+        - **Improvement**: declared `min_version` 2025.4.0 (the `combine` template filter) and switched to the modern `triggers:` / `conditions:` / `actions:` syntax.
+        - **Docs**: the `Delay` description no longer references `queued` mode.
+        - **Improvement**: 20 stored traces per automation (HA default is 5), so the real run's trace is no longer evicted by the dropped co-firing triggers and rejected echoes of the same toggle.
       - 2.0.2: (2026-05-13) — color_temp regression fix
         - **Fix**: linked lights no longer revert to a dim blueish tint when the source is set to a white color temperature. v2.0's priority chain (`hs > rgb > xy > color_temp_kelvin`) always picked `hs_color`, but Home Assistant *derives* `hs_color`/`rgb_color`/`xy_color` from kelvin when a light is in `color_mode: color_temp` — and that derived hs sits in a low-saturation blue range. Linked bulbs then ran their RGB LEDs at that hue instead of their dedicated white LEDs, producing the dim-blue look. The color attribute to propagate is now chosen from the source's `color_mode`, with the old priority chain kept only as a fallback if `color_mode` is missing. Thanks @mcmasterp for the report.
       - 2.0.1: (2026-05-11) — regression fix
@@ -66,10 +78,13 @@ blueprint:
     [![HA Community - Topic](https://img.shields.io/static/v1?label=HA+Community&message=Topic&color=2ea44f&logo=home-assistant)](https://community.home-assistant.io/t/linked-entities-keep-mutlple-entities-binary-state-in-sync-lights-switches-etc/662836?u=alexdelprete)
 
   domain: automation
+  author: Alessandro Del Prete
+  homeassistant:
+    min_version: "2025.4.0"
   input:
     linked_entity:
       name: Linked Entities
-      description: Entities whose state and attributes will be linked. Brightness/color propagate only to lights; speed propagates only to fans.
+      description: Entities whose state and attributes will be linked. On/off propagates to all of them; brightness/color only to lights; speed only to fans.
       selector:
         entity:
           filter:
@@ -78,10 +93,13 @@ blueprint:
               - switch
               - fan
               - input_boolean
+              - siren
+              - humidifier
+              - remote
           multiple: true
     delay_milliseconds:
       name: Delay
-      description: Delay between propagated state changes (ms). Throttles back-to-back triggers in `queued` mode.
+      description: Pause after each propagated service call (ms). Throttles back-to-back calls and absorbs state echoes from the blueprint's own actions.
       selector:
         number:
           min: 0
@@ -90,8 +108,18 @@ blueprint:
           mode: box
       default: 200
     debounce_milliseconds:
-      name: Debounce
-      description: How long a state/attribute must remain stable before propagating (ms). Suppresses spurious echoes from slow Matter/Zigbee/WiFi devices. Default 100 ms is imperceptible to humans; raise to 500–2000 ms on flaky networks. Set to 0 to disable.
+      name: Debounce (on/off)
+      description: How long an on/off change must remain stable before propagating (ms). This is the only fixed cost in the reaction time of linked entities. Default 50 ms absorbs the split/duplicate reports some devices send while staying imperceptible; set to 0 on fast local networks (ESPHome, Tasmota, Shelly on good WiFi), raise to 500–2000 ms if a device reports spurious off-after-on glitches (Matter/Tapo dimmers, slow Zigbee mesh).
+      selector:
+        number:
+          min: 0
+          max: 5000
+          unit_of_measurement: milliseconds
+          mode: box
+      default: 50
+    attribute_debounce_milliseconds:
+      name: Debounce (brightness/color/speed)
+      description: How long a brightness, color or fan-speed change must remain stable before propagating (ms). Absorbs the micro-steps of a slider drag so linked lights get the final value instead of every intermediate one. Default 100 ms; lower to 0 to mirror every step, raise to 200–300 ms for fewer steps.
       selector:
         number:
           min: 0
@@ -113,87 +141,126 @@ blueprint:
 
 mode: single
 max_exceeded: silent
+# Every toggle produces several trace entries (the real run, the attribute
+# triggers dropped by `mode: single`, the rejected echoes). HA's default of 5
+# stored traces evicts the real run within a second, so keep more.
+trace:
+  stored_traces: 20
 
 variables:
   linked_entities: !input linked_entity
   transition_seconds: !input transition_seconds
 
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     id: turn_on
     entity_id: !input linked_entity
-    from:
-      - "off"
-      - "unavailable"
-      - "unknown"
+    from: "off"
     to: "on"
     for:
       milliseconds: !input debounce_milliseconds
-  - platform: state
+  - trigger: state
     id: turn_off
     entity_id: !input linked_entity
-    from:
-      - "on"
-      - "unavailable"
-      - "unknown"
+    from: "on"
     to: "off"
     for:
       milliseconds: !input debounce_milliseconds
-  - platform: state
+  # Recovery is not latency-sensitive. A fixed 1 s settle lets the recovering
+  # device finish its restore sequence and gives its peers time to come online
+  # too, so the unanimity check below sees as much of the group as possible.
+  - trigger: state
+    id: recovered
+    entity_id: !input linked_entity
+    from:
+      - "unavailable"
+      - "unknown"
+    to:
+      - "on"
+      - "off"
+    for:
+      seconds: 1
+  - trigger: state
     id: set_speed
     entity_id: !input linked_entity
     attribute: percentage
     for:
-      milliseconds: !input debounce_milliseconds
-  - platform: state
+      milliseconds: !input attribute_debounce_milliseconds
+  - trigger: state
     id: set_brightness
     entity_id: !input linked_entity
     attribute: brightness
     for:
-      milliseconds: !input debounce_milliseconds
-  - platform: state
+      milliseconds: !input attribute_debounce_milliseconds
+  - trigger: state
     id: set_color_temp_kelvin
     entity_id: !input linked_entity
     attribute: color_temp_kelvin
     for:
-      milliseconds: !input debounce_milliseconds
-  - platform: state
+      milliseconds: !input attribute_debounce_milliseconds
+  - trigger: state
     id: set_hs_color
     entity_id: !input linked_entity
     attribute: hs_color
     for:
-      milliseconds: !input debounce_milliseconds
-  - platform: state
+      milliseconds: !input attribute_debounce_milliseconds
+  - trigger: state
     id: set_rgb_color
     entity_id: !input linked_entity
     attribute: rgb_color
     for:
-      milliseconds: !input debounce_milliseconds
-  - platform: state
+      milliseconds: !input attribute_debounce_milliseconds
+  - trigger: state
     id: set_xy_color
     entity_id: !input linked_entity
     attribute: xy_color
     for:
-      milliseconds: !input debounce_milliseconds
+      milliseconds: !input attribute_debounce_milliseconds
 
-condition:
+conditions:
+  # Self-trigger guard. Reject state changes caused by this automation's own
+  # service calls:
+  #   1. same context id as the last run,
+  #   2. a child context of the last run,
+  #   3. same originating (parent) context as the last run. Needed because
+  #      triggers dropped by `mode: single` (e.g. brightness/color attribute
+  #      triggers co-firing with a light turn-on) still overwrite the stored
+  #      context, so check 1 alone would let late echoes through.
   - condition: template
     value_template: >-
       {{ trigger.to_state.context.id != this.context.id
-         and trigger.to_state.context.parent_id != this.context.id }}
+         and trigger.to_state.context.parent_id != this.context.id
+         and (trigger.to_state.context.parent_id is none
+              or trigger.to_state.context.parent_id != this.context.parent_id) }}
 
-action:
+actions:
   - variables:
+      src_domain: "{{ trigger.entity_id.split('.')[0] }}"
       others: "{{ linked_entities | reject('eq', trigger.entity_id) | list }}"
       other_lights: "{{ others | select('match', '^light\\.') | list }}"
       other_fans: "{{ others | select('match', '^fan\\.') | list }}"
-      src_brightness: "{{ state_attr(trigger.entity_id, 'brightness') }}"
-      src_color_mode: "{{ state_attr(trigger.entity_id, 'color_mode') }}"
-      src_color_temp_kelvin: "{{ state_attr(trigger.entity_id, 'color_temp_kelvin') }}"
-      src_hs_color: "{{ state_attr(trigger.entity_id, 'hs_color') }}"
-      src_rgb_color: "{{ state_attr(trigger.entity_id, 'rgb_color') }}"
-      src_xy_color: "{{ state_attr(trigger.entity_id, 'xy_color') }}"
-      src_percentage: "{{ state_attr(trigger.entity_id, 'percentage') }}"
+      # On/off states of the peers that are currently online, deduplicated.
+      # A single element means every online peer agrees.
+      peer_states: "{{ others | map('states') | select('in', ['on', 'off']) | unique | list }}"
+      # Entity whose attributes are propagated. Normally the trigger entity;
+      # on recovery, the first same-domain peer that is on (or none).
+      src_entity: >-
+        {%- if trigger.id == 'recovered' -%}
+          {%- set ns = namespace(peer=none) -%}
+          {%- for e in others if ns.peer is none and e.split('.')[0] == src_domain and is_state(e, 'on') -%}
+            {%- set ns.peer = e -%}
+          {%- endfor -%}
+          {{ ns.peer }}
+        {%- else -%}
+          {{ trigger.entity_id }}
+        {%- endif -%}
+      src_brightness: "{{ state_attr(src_entity, 'brightness') if src_entity is not none else none }}"
+      src_color_mode: "{{ state_attr(src_entity, 'color_mode') if src_entity is not none else none }}"
+      src_color_temp_kelvin: "{{ state_attr(src_entity, 'color_temp_kelvin') if src_entity is not none else none }}"
+      src_hs_color: "{{ state_attr(src_entity, 'hs_color') if src_entity is not none else none }}"
+      src_rgb_color: "{{ state_attr(src_entity, 'rgb_color') if src_entity is not none else none }}"
+      src_xy_color: "{{ state_attr(src_entity, 'xy_color') if src_entity is not none else none }}"
+      src_percentage: "{{ state_attr(src_entity, 'percentage') if src_entity is not none else none }}"
       color_data: >-
         {% if src_color_mode == 'hs' and src_hs_color is not none %}{{ {'hs_color': src_hs_color} }}
         {%- elif src_color_mode in ('rgb', 'rgbw', 'rgbww') and src_rgb_color is not none %}{{ {'rgb_color': src_rgb_color} }}
@@ -212,6 +279,15 @@ action:
           | combine(color_data)
           | combine(transition_data)
         }}
+      # True when linked lights/fans must be turned on with attributes in a
+      # single domain-specific call instead of the plain homeassistant.turn_on.
+      carry_light: "{{ src_domain == 'light' and light_on_data | count > 0 }}"
+      carry_fan: "{{ src_domain == 'fan' and src_percentage is not none and src_percentage | int(0) > 0 }}"
+      others_plain: >-
+        {{ others
+           | reject('in', other_lights if carry_light else [])
+           | reject('in', other_fans if carry_fan else [])
+           | list }}
 
   - choose:
       - conditions:
@@ -219,18 +295,26 @@ action:
             id: turn_on
         sequence:
           - if:
-              - "{{ others | count > 0 }}"
+              - "{{ others_plain | count > 0 }}"
             then:
-              - service: homeassistant.turn_on
+              - action: homeassistant.turn_on
                 target:
-                  entity_id: "{{ others }}"
+                  entity_id: "{{ others_plain }}"
           - if:
-              - "{{ other_lights | count > 0 and trigger.entity_id.startswith('light.') and light_on_data | count > 0 }}"
+              - "{{ carry_light and other_lights | count > 0 }}"
             then:
-              - service: light.turn_on
+              - action: light.turn_on
                 target:
                   entity_id: "{{ other_lights }}"
                 data: "{{ light_on_data }}"
+          - if:
+              - "{{ carry_fan and other_fans | count > 0 }}"
+            then:
+              - action: fan.turn_on
+                target:
+                  entity_id: "{{ other_fans }}"
+                data:
+                  percentage: "{{ src_percentage }}"
           - delay:
               milliseconds: !input delay_milliseconds
 
@@ -241,20 +325,54 @@ action:
           - if:
               - "{{ others | count > 0 }}"
             then:
-              - service: homeassistant.turn_off
+              - action: homeassistant.turn_off
                 target:
                   entity_id: "{{ others }}"
+          - delay:
+              milliseconds: !input delay_milliseconds
+
+      # Recovery: the entity that just came back online is the least
+      # trustworthy member of the group, so it adopts the peers' state instead
+      # of pushing its own. Acts only when every online peer agrees; the first
+      # entity to recover after an HA restart finds no online peer and does
+      # nothing.
+      - conditions:
+          - condition: trigger
+            id: recovered
+          - "{{ peer_states | count == 1 }}"
+        sequence:
+          - if:
+              - "{{ peer_states[0] != trigger.to_state.state }}"
+            then:
+              - action: "homeassistant.turn_{{ peer_states[0] }}"
+                target:
+                  entity_id: "{{ trigger.entity_id }}"
+          - if:
+              - "{{ peer_states[0] == 'on' and src_domain == 'light' and src_entity is not none and light_on_data | count > 0 }}"
+            then:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ trigger.entity_id }}"
+                data: "{{ light_on_data }}"
+          - if:
+              - "{{ peer_states[0] == 'on' and src_domain == 'fan' and src_entity is not none and src_percentage is not none }}"
+            then:
+              - action: fan.set_percentage
+                target:
+                  entity_id: "{{ trigger.entity_id }}"
+                data:
+                  percentage: "{{ src_percentage }}"
           - delay:
               milliseconds: !input delay_milliseconds
 
       - conditions:
           - condition: trigger
             id: set_speed
-          - "{{ trigger.entity_id.startswith('fan.') }}"
+          - "{{ src_domain == 'fan' }}"
           - "{{ other_fans | count > 0 }}"
           - "{{ src_percentage is not none }}"
         sequence:
-          - service: fan.set_percentage
+          - action: fan.set_percentage
             target:
               entity_id: "{{ other_fans }}"
             data:
@@ -265,11 +383,11 @@ action:
       - conditions:
           - condition: trigger
             id: set_brightness
-          - "{{ trigger.entity_id.startswith('light.') }}"
+          - "{{ src_domain == 'light' }}"
           - "{{ other_lights | count > 0 }}"
           - "{{ src_brightness is not none }}"
         sequence:
-          - service: light.turn_on
+          - action: light.turn_on
             target:
               entity_id: "{{ other_lights }}"
             data: "{{ {'brightness': src_brightness} | combine(transition_data) }}"
@@ -283,11 +401,11 @@ action:
               - set_hs_color
               - set_rgb_color
               - set_xy_color
-          - "{{ trigger.entity_id.startswith('light.') }}"
+          - "{{ src_domain == 'light' }}"
           - "{{ other_lights | count > 0 }}"
           - "{{ color_data | count > 0 }}"
         sequence:
-          - service: light.turn_on
+          - action: light.turn_on
             target:
               entity_id: "{{ other_lights }}"
             data: "{{ color_data | combine(transition_data) }}"
