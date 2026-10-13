@@ -210,9 +210,9 @@ conditions:
   - condition: template
     value_template: >-
       {{ trigger.to_state.context.id != this.context.id
-         and trigger.to_state.context.parent_id != this.context.id
-         and (trigger.to_state.context.parent_id is none
-              or trigger.to_state.context.parent_id != this.context.parent_id) }}
+        and trigger.to_state.context.parent_id != this.context.id
+        and (trigger.to_state.context.parent_id is none
+          or trigger.to_state.context.parent_id != this.context.parent_id) }}
 
 actions:
   - variables:
@@ -238,7 +238,7 @@ actions:
       state_changed: "{{ trigger.from_state is none or trigger.from_state.state != trigger.to_state.state }}"
       relevant_attrs: >-
         {{ ['brightness', 'color_mode', 'color_temp_kelvin', 'hs_color', 'rgb_color', 'xy_color'] if src_domain == 'light'
-           else (['percentage'] if src_domain == 'fan' else []) }}
+          else (['percentage'] if src_domain == 'fan' else []) }}
       # Attributes that differ between from_state and to_state (attribute_changed only).
       changed_attrs: >-
         {%- set ns = namespace(c=[]) -%}
@@ -282,9 +282,9 @@ actions:
       carry_fan: "{{ src_domain == 'fan' and src_percentage is not none and src_percentage | int(0) > 0 }}"
       others_plain: >-
         {{ others
-           | reject('in', other_lights if carry_light else [])
-           | reject('in', other_fans if carry_fan else [])
-           | list }}
+          | reject('in', other_lights if carry_light else [])
+          | reject('in', other_fans if carry_fan else [])
+          | list }}
 
   - choose:
       - conditions:
