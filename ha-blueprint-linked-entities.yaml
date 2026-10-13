@@ -26,7 +26,7 @@ blueprint:
     **CHANGELOG:**
       - 2.2.0: (2026-10-13)
         - **Fix ([#11](https://github.com/alexdelprete/ha-blueprints/issues/11))**: the six per-attribute triggers (brightness, color, fan speed) are replaced by a single plain state trigger on the linked entities. A blueprint cannot restrict an input per domain, so the old triggers watched e.g. `percentage` on lights and `brightness` on switches, which Spook's "unknown attributes" check reports as ghosts. Which attributes changed is now worked out inside the run. Thanks @junk67 for the report.
-        - **Fix**: a brightness and color change arriving in one update (scenes, adaptive lighting) now propagates both. Previously the brightness trigger won the `mode: single` slot and the color change was dropped.
+        - **Fix**: a brightness and color change arriving in one update (scenes, adaptive lighting, RGBW controllers) now propagates both. Previously the brightness trigger won the `mode: single` slot and the color change was dropped. Also reported, with a proposed fix, by @butsify in [PR #10](https://github.com/alexdelprete/ha-blueprints/pull/10).
         - **Change**: during a slider drag the linked lights now follow in samples (every attribute debounce + delay + device round trip) and are guaranteed to end on the final value. The previous design propagated only the final value and could miss it when it landed inside another run's trailing delay.
         - **Improvement**: attribute sync also turns on linked entities that are still off, so a turn-on dropped by `mode: single` can no longer leave a group split.
       - 2.1.0: (2026-10-06)
