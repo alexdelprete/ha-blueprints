@@ -4,7 +4,7 @@ blueprint:
 
     [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-    **Linked Entities v2.1.0** 🔛
+    **Linked Entities v2.2.0** 🔛
 
     This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
       - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -24,6 +24,11 @@ blueprint:
     I'm sure you'll find many more use-cases. :slight_smile:
 
     **CHANGELOG:**
+      - 2.2.0: (2026-10-13)
+        - **Fix ([#11](https://github.com/alexdelprete/ha-blueprints/issues/11))**: the six per-attribute triggers (brightness, color, fan speed) are replaced by a single plain state trigger on the linked entities. A blueprint cannot restrict an input per domain, so the old triggers watched e.g. `percentage` on lights and `brightness` on switches, which Spook's "unknown attributes" check reports as ghosts. Which attributes changed is now worked out inside the run. Thanks @junk67 for the report.
+        - **Fix**: a brightness and color change arriving in one update (scenes, adaptive lighting) now propagates both. Previously the brightness trigger won the `mode: single` slot and the color change was dropped.
+        - **Change**: during a slider drag the linked lights now follow in samples (every attribute debounce + delay + device round trip) and are guaranteed to end on the final value. The previous design propagated only the final value and could miss it when it landed inside another run's trailing delay.
+        - **Improvement**: attribute sync also turns on linked entities that are still off, so a turn-on dropped by `mode: single` can no longer leave a group split.
       - 2.1.0: (2026-10-06)
         - **New**: supported domains extended with `siren`, `humidifier` and `remote` (on/off sync).
         - **Change**: recovery from `unavailable`/`unknown` no longer pushes the recovering entity's state to the group. The recovering entity now *adopts* the state of the linked entities that stayed online, and only when they all agree; lights and fans also adopt brightness/color/speed from a same-domain peer. Fixes state flips after HA restarts or integration reloads, when entities came back in arbitrary order and the first one to appear overwrote the others.
@@ -119,7 +124,7 @@ blueprint:
       default: 50
     attribute_debounce_milliseconds:
       name: Debounce (brightness/color/speed)
-      description: How long a brightness, color or fan-speed change must remain stable before propagating (ms). Absorbs the micro-steps of a slider drag so linked lights get the final value instead of every intermediate one. Default 100 ms; lower to 0 to mirror every step, raise to 200–300 ms for fewer steps.
+      description: Wait before sampling and propagating a brightness, color or fan-speed change (ms). During a slider drag the linked lights follow in samples spaced by this value plus Delay plus the device round trip, and always end on the final value. Default 100 ms; raise to 200–300 ms for fewer intermediate steps, lower to 0 for the fastest reaction.
       selector:
         number:
           min: 0
@@ -180,40 +185,16 @@ triggers:
       - "off"
     for:
       seconds: 1
+  # One trigger for every attribute change (brightness, color, fan speed).
+  # Deliberately no `attribute:` filter: a blueprint cannot restrict an input
+  # per domain, and watching e.g. `percentage` on a light makes Spook report a
+  # ghost attribute (#11). Which attributes changed is worked out in the run.
+  # `for:` here only delays the first fire (the timers of a bare state trigger
+  # are not cancelled by further attribute changes); the convergence loop in
+  # the attribute branch is what makes a slider drag end on the final value.
   - trigger: state
-    id: set_speed
+    id: attribute_changed
     entity_id: !input linked_entity
-    attribute: percentage
-    for:
-      milliseconds: !input attribute_debounce_milliseconds
-  - trigger: state
-    id: set_brightness
-    entity_id: !input linked_entity
-    attribute: brightness
-    for:
-      milliseconds: !input attribute_debounce_milliseconds
-  - trigger: state
-    id: set_color_temp_kelvin
-    entity_id: !input linked_entity
-    attribute: color_temp_kelvin
-    for:
-      milliseconds: !input attribute_debounce_milliseconds
-  - trigger: state
-    id: set_hs_color
-    entity_id: !input linked_entity
-    attribute: hs_color
-    for:
-      milliseconds: !input attribute_debounce_milliseconds
-  - trigger: state
-    id: set_rgb_color
-    entity_id: !input linked_entity
-    attribute: rgb_color
-    for:
-      milliseconds: !input attribute_debounce_milliseconds
-  - trigger: state
-    id: set_xy_color
-    entity_id: !input linked_entity
-    attribute: xy_color
     for:
       milliseconds: !input attribute_debounce_milliseconds
 
@@ -254,6 +235,22 @@ actions:
         {%- else -%}
           {{ trigger.entity_id }}
         {%- endif -%}
+      state_changed: "{{ trigger.from_state is none or trigger.from_state.state != trigger.to_state.state }}"
+      relevant_attrs: >-
+        {{ ['brightness', 'color_mode', 'color_temp_kelvin', 'hs_color', 'rgb_color', 'xy_color'] if src_domain == 'light'
+           else (['percentage'] if src_domain == 'fan' else []) }}
+      # Attributes that differ between from_state and to_state (attribute_changed only).
+      changed_attrs: >-
+        {%- set ns = namespace(c=[]) -%}
+        {%- if trigger.id == 'attribute_changed' and trigger.from_state is not none -%}
+          {%- for k in relevant_attrs if trigger.from_state.attributes.get(k) != trigger.to_state.attributes.get(k) -%}
+            {%- set ns.c = ns.c + [k] -%}
+          {%- endfor -%}
+        {%- endif -%}
+        {{ ns.c }}
+  # Everything derived from the source entity's current attributes. Anchored so
+  # the attribute branch can re-evaluate it on every loop iteration.
+  - variables: &source_attributes
       src_brightness: "{{ state_attr(src_entity, 'brightness') if src_entity is not none else none }}"
       src_color_mode: "{{ state_attr(src_entity, 'color_mode') if src_entity is not none else none }}"
       src_color_temp_kelvin: "{{ state_attr(src_entity, 'color_temp_kelvin') if src_entity is not none else none }}"
@@ -365,49 +362,47 @@ actions:
           - delay:
               milliseconds: !input delay_milliseconds
 
+      # Attribute changes (brightness / color / fan speed). Samples the source,
+      # sends to the same-domain peers, waits, and repeats while the source
+      # keeps changing, so a slider drag ends on the final value even though
+      # `mode: single` drops the triggers fired during the run.
       - conditions:
           - condition: trigger
-            id: set_speed
-          - "{{ src_domain == 'fan' }}"
-          - "{{ other_fans | count > 0 }}"
-          - "{{ src_percentage is not none }}"
+            id: attribute_changed
+          - "{{ not state_changed and trigger.to_state.state == 'on' and changed_attrs | count > 0 }}"
+          - "{{ (src_domain == 'light' and other_lights | count > 0) or (src_domain == 'fan' and other_fans | count > 0) }}"
         sequence:
-          - action: fan.set_percentage
-            target:
-              entity_id: "{{ other_fans }}"
-            data:
-              percentage: "{{ src_percentage }}"
-          - delay:
-              milliseconds: !input delay_milliseconds
-
-      - conditions:
-          - condition: trigger
-            id: set_brightness
-          - "{{ src_domain == 'light' }}"
-          - "{{ other_lights | count > 0 }}"
-          - "{{ src_brightness is not none }}"
-        sequence:
-          - action: light.turn_on
-            target:
-              entity_id: "{{ other_lights }}"
-            data: "{{ {'brightness': src_brightness} | combine(transition_data) }}"
-          - delay:
-              milliseconds: !input delay_milliseconds
-
-      - conditions:
-          - condition: trigger
-            id:
-              - set_color_temp_kelvin
-              - set_hs_color
-              - set_rgb_color
-              - set_xy_color
-          - "{{ src_domain == 'light' }}"
-          - "{{ other_lights | count > 0 }}"
-          - "{{ color_data | count > 0 }}"
-        sequence:
-          - action: light.turn_on
-            target:
-              entity_id: "{{ other_lights }}"
-            data: "{{ color_data | combine(transition_data) }}"
-          - delay:
-              milliseconds: !input delay_milliseconds
+          - repeat:
+              sequence:
+                - variables: *source_attributes
+                - variables:
+                    snapshot_updated: "{{ (expand(trigger.entity_id) | map(attribute='last_updated') | list | first | default(none)) | string }}"
+                    # Followers that are still off (e.g. their turn-on run was
+                    # dropped because this run already held the lock): turn them
+                    # on too, so attribute sync never leaves the group split.
+                    others_off_plain: "{{ others | reject('in', other_lights if src_domain == 'light' else other_fans) | select('is_state', 'off') | list }}"
+                - if:
+                    - "{{ others_off_plain | count > 0 }}"
+                  then:
+                    - action: homeassistant.turn_on
+                      target:
+                        entity_id: "{{ others_off_plain }}"
+                - if:
+                    - "{{ src_domain == 'light' and light_on_data | count > 0 }}"
+                  then:
+                    - action: light.turn_on
+                      target:
+                        entity_id: "{{ other_lights }}"
+                      data: "{{ light_on_data }}"
+                - if:
+                    - "{{ src_domain == 'fan' and src_percentage is not none }}"
+                  then:
+                    - action: fan.set_percentage
+                      target:
+                        entity_id: "{{ other_fans }}"
+                      data:
+                        percentage: "{{ src_percentage }}"
+                - delay:
+                    milliseconds: !input delay_milliseconds
+              until:
+                - "{{ repeat.index >= 20 or (expand(trigger.entity_id) | map(attribute='last_updated') | list | first | default(none)) | string == snapshot_updated }}"

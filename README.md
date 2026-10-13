@@ -1,6 +1,6 @@
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Falexdelprete%2Fha-blueprints%2Fmain%2Fha-blueprint-linked-entities.yaml)
 
-**Linked Entities v2.1.0** 🔛
+**Linked Entities v2.2.0** 🔛
 
 This blueprint allows you to easily create/maintain an automation that links the state of multiple entities:
   - turn ANY linked entity ON, it will turn ON ALL linked entities.
@@ -40,7 +40,7 @@ The blueprint exposes four knobs. The defaults work well for most setups; adjust
 | Input | Default | What it does |
 |---|---|---|
 | `Debounce (on/off)` (`debounce_milliseconds`) | 50 ms | An on/off change must remain stable for this long before it propagates. This is the only fixed cost in the reaction time of linked entities; everything else is the device round trip. Absorbs split/duplicate reports and spurious off-after-on glitches from flaky devices. |
-| `Debounce (brightness/color/speed)` (`attribute_debounce_milliseconds`) | 100 ms | A brightness, color or fan-speed change must remain stable for this long before it propagates. Absorbs the micro-steps of a slider drag so linked lights get the final value. |
+| `Debounce (brightness/color/speed)` (`attribute_debounce_milliseconds`) | 100 ms | Wait before sampling and propagating a brightness, color or fan-speed change. During a slider drag the linked lights follow in samples spaced by this value plus `Delay` plus the device round trip, and always end on the final value. |
 | `Delay` (`delay_milliseconds`) | 200 ms | Pause after each propagated service call. Adds no latency to a toggle; it throttles back-to-back calls and keeps the automation busy long enough for the state echoes of its own actions to be dropped. |
 | `Light Transition` (`transition_seconds`) | 0 (off) | Smooth fade duration for brightness/color updates on linked lights. |
 
@@ -53,7 +53,7 @@ Recovery (see below) uses a fixed 1 s settle time and is not affected by these i
 | Lights occasionally turn on and immediately back off on their own (or vice versa) | **Raise `Debounce (on/off)` to 500–1000 ms**. This is the Matter/Tapo/slow-Zigbee echo bug from [#3](https://github.com/alexdelprete/ha-blueprints/issues/3). |
 | Linked entities feel a bit sluggish to react | **Lower `Debounce (on/off)` to 0**. Only do this on fast, reliable local devices (ESPHome, Tasmota, Shelly, Z2M on a wired host). What remains is the device round trip, typically 80–120 ms on WiFi, which no automation setting can shorten. |
 | Home Assistant log shows service-call errors or "too many requests" warnings when toggling | **Raise `Delay` to 300–500 ms**. Some integrations (cloud-backed Tuya, large Z-Wave meshes) don't like rapid back-to-back calls. |
-| Dragging a brightness slider on one light produces visible "stepping" on the others | This is `Debounce (brightness/color/speed)` working as intended — only values that hold for 100 ms+ propagate. Raise it to 200–300 ms if you want even fewer intermediate steps, or lower to 0 if you want every step mirrored. |
+| Dragging a brightness slider on one light produces visible "stepping" on the others | Expected: linked lights follow in samples every `Debounce (brightness/color/speed)` + `Delay` + device round trip (~350 ms at defaults) and land on the final value. Raise the attribute debounce to 200–300 ms for fewer intermediate steps, or set `Light Transition` to 0.5 s so each step fades. |
 | Linked lights jump abruptly when brightness/color changes | **Set `Light Transition` to 0.5–2 seconds** for smooth fades. |
 | You linked a Zigbee bulb to a smart switch and the bulb misfires when the switch is also under load | jnrcorp's advice on [#3](https://github.com/alexdelprete/ha-blueprints/issues/3): consider whether you actually want the bulb to follow the switch's reported state, or if the switch should be the only controller (in which case you don't need this blueprint). If you do want sync, raise `Debounce (on/off)` to 1000+ ms. |
 
@@ -90,6 +90,8 @@ HA doesn't auto-pull blueprint updates. Re-import the blueprint manually:
 1. **Settings → Automations & Scenes → Blueprints → Linked Entities → ⋮ → Re-import blueprint** (or click the My-HA badge at the top of this README again).
 2. HA fetches the new YAML, overwrites the local copy and reloads every automation built on it. All existing instances immediately run the new logic — **no re-save needed**.
 
+*From v2.1.0 to v2.2.0:* nothing to re-enter. The only visible change is how linked lights follow a slider drag (see the FAQ), and the Spook repair disappears.
+
 *From v2.0.x to v2.1.0:* no input was renamed or removed, so nothing to re-enter. Requires HA 2025.4+. Behavioral changes you may notice: the recovery direction described above, and on/off sync reacting ~50 ms faster (the on/off debounce default dropped from 100 to 50 ms; if you had set `Debounce` yourself, your value still applies to on/off changes, and the new `Debounce (brightness/color/speed)` starts at 100 ms). If you have `siren`, `humidifier` or `remote` entities you previously had to leave out, you can now add them to your instances.
 
 *From v1.3 to v2.x:* open an existing automation only if one of these applies to you:
@@ -125,7 +127,10 @@ Three layers of protection:
 Recovery (see above) never fans out to the other entities, so it cannot start a loop either. If you still see misfires on Matter/Tapo/slow-Zigbee setups, raise `Debounce (on/off)` to 500–2000 ms. See the *Tuning* section above.
 
 **Q: When I drag a brightness slider, the linked lights jump in steps instead of following smoothly. Is this broken?**
-No — that's `Debounce (brightness/color/speed)` working as intended. Only brightness values that hold for the debounce window (default 100 ms) propagate, so micro-steps during a slider drag are absorbed. If you want every step mirrored, lower it to 0. If you want even fewer steps, raise it to 200–300 ms. For smooth fades to the final value, set `Light Transition` to 0.5–2 seconds.
+No. Since v2.2.0 an attribute change starts one run that samples the source light, sends the value to the linked lights, waits `Delay`, and repeats while the source keeps changing. So during a drag the linked lights follow in samples (roughly every 350 ms at defaults) and are guaranteed to end on the final value. Raise `Debounce (brightness/color/speed)` to 200–300 ms for fewer intermediate steps, or set `Light Transition` to 0.5–2 seconds so each step fades instead of jumping.
+
+**Q: Spook reports "unknown attributes" (e.g. `percentage` on a light) for my Linked Entities automations.**
+Fixed in v2.2.0 ([#11](https://github.com/alexdelprete/ha-blueprints/issues/11)). Earlier versions watched every attribute on every linked entity, because a blueprint cannot filter an input per domain; the repair was harmless but noisy. v2.2.0 uses a single plain state trigger and works out the changed attributes inside the run. Re-import the blueprint and the repair goes away.
 
 **Q: How fast can linked entities react?**
 The reaction time is `Debounce (on/off)` plus the device round trip (command out, device acts, state report back). With the default 50 ms debounce and typical local WiFi/Zigbee devices that is 130–170 ms end to end; with debounce 0 it is the round trip alone, 80–120 ms. The `Delay` input adds nothing to a single toggle. Note that the logbook shows when the device *confirmed* the new state, which is a few tens of milliseconds after the relay actually switched.
@@ -143,6 +148,11 @@ Each linked entity comes back from `unavailable`/`unknown` in whatever order its
 Open the blueprint in **Settings → Automations & Scenes → Blueprints → Linked Entities** and check the description — the version is in the first line. The full changelog is below this FAQ.
 
 **CHANGELOG:**
+  - **2.2.0**: (2026-10-13)
+    - **Fix ([#11](https://github.com/alexdelprete/ha-blueprints/issues/11))**: the six per-attribute triggers (brightness, color, fan speed) are replaced by a single plain state trigger on the linked entities. A blueprint cannot restrict an input per domain, so the old triggers watched e.g. `percentage` on lights and `brightness` on switches, which Spook's "unknown attributes" check reports as ghosts. Which attributes changed is now worked out inside the run. Thanks @junk67 for the report.
+    - **Fix**: a brightness and color change arriving in one update (scenes, adaptive lighting) now propagates both. Previously the brightness trigger won the `mode: single` slot and the color change was dropped.
+    - **Change**: during a slider drag the linked lights now follow in samples (every attribute debounce + delay + device round trip) and are guaranteed to end on the final value. The previous design propagated only the final value and could miss it when it landed inside another run's trailing delay.
+    - **Improvement**: attribute sync also turns on linked entities that are still off, so a turn-on dropped by `mode: single` can no longer leave a group split.
   - **2.1.0**: (2026-10-06)
     - **New**: supported domains extended with `siren`, `humidifier` and `remote` (on/off sync).
     - **Change**: recovery from `unavailable`/`unknown` no longer pushes the recovering entity's state to the group. The recovering entity now *adopts* the state of the linked entities that stayed online, and only when they all agree; lights and fans also adopt brightness/color/speed from a same-domain peer. Fixes state flips after HA restarts or integration reloads, when entities came back in arbitrary order and the first one to appear overwrote the others.
